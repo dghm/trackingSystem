@@ -90,7 +90,16 @@ function initConnections() {
       }
 
       // 清除緩存，強制重新載入模組（確保使用最新的環境變數）
-      const resolvedPath = require.resolve(airtablePath);
+      // 先嘗試直接 require，如果失敗再使用 require.resolve
+      let resolvedPath;
+      try {
+        resolvedPath = require.resolve(airtablePath);
+      } catch (resolveError) {
+        // 如果 require.resolve 失敗，嘗試直接 require
+        console.log('⚠️ require.resolve 失敗，嘗試直接 require:', resolveError.message);
+        resolvedPath = airtablePath;
+      }
+      
       if (require.cache[resolvedPath]) {
         delete require.cache[resolvedPath];
         console.log('  ✅ 已清除模組緩存');
@@ -283,7 +292,16 @@ exports.handler = async (event, context) => {
           }
           
           // 清除緩存，強制重新載入模組
-          const resolvedPath = require.resolve(airtablePath);
+          // 先嘗試直接 require，如果失敗再使用 require.resolve
+          let resolvedPath;
+          try {
+            resolvedPath = require.resolve(airtablePath);
+          } catch (resolveError) {
+            // 如果 require.resolve 失敗，嘗試直接 require
+            console.log('⚠️ require.resolve 失敗，嘗試直接 require:', resolveError.message);
+            resolvedPath = airtablePath;
+          }
+          
           if (require.cache[resolvedPath]) {
             delete require.cache[resolvedPath];
           }
