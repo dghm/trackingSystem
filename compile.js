@@ -153,19 +153,12 @@ if (fs.existsSync(JS_SOURCE_DIR)) {
 
 // 4. 複製靜態資源
 console.log('📦 複製靜態資源...');
-// 首先複製 track 專案的 Assets
+// 複製 track 專案的 Assets（包含所有需要的圖片）
 if (fs.existsSync(ASSETS_DIR)) {
   copyDir(ASSETS_DIR, path.join(DIST_DIR, 'images'));
   console.log('  ✅ 已複製 track Assets 到 images/');
 } else {
   console.warn('  ⚠️ 未找到 track Assets 目錄');
-}
-
-// 然後複製父專案的 Assets（包含共用的圖片）
-const PARENT_ASSETS_DIR = path.join(ROOT_DIR, '../../Assets');
-if (fs.existsSync(PARENT_ASSETS_DIR)) {
-  copyDir(PARENT_ASSETS_DIR, path.join(DIST_DIR, 'images'));
-  console.log('  ✅ 已複製父專案 Assets 到 images/');
 }
 
 console.log('✅ 靜態資源已就緒');
