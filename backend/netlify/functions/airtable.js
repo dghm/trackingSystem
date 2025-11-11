@@ -52,16 +52,16 @@ function initAirtable() {
  */
 function formatDateTaiwan(dateInput) {
   if (!dateInput) return '';
-  
+
   let date;
   if (dateInput instanceof Date) {
     date = new Date(dateInput);
   } else {
     date = new Date(dateInput);
   }
-  
+
   if (isNaN(date.getTime())) return '';
-  
+
   // 使用 Intl.DateTimeFormat 格式化為台灣時區
   const formatter = new Intl.DateTimeFormat('en-US', {
     timeZone: 'Asia/Taipei',
@@ -69,12 +69,12 @@ function formatDateTaiwan(dateInput) {
     month: '2-digit',
     day: '2-digit',
   });
-  
+
   const parts = formatter.formatToParts(date);
-  const year = parts.find(p => p.type === 'year').value;
-  const month = parts.find(p => p.type === 'month').value;
-  const day = parts.find(p => p.type === 'day').value;
-  
+  const year = parts.find((p) => p.type === 'year').value;
+  const month = parts.find((p) => p.type === 'month').value;
+  const day = parts.find((p) => p.type === 'day').value;
+
   return `${year}-${month}-${day}`;
 }
 
@@ -85,16 +85,16 @@ function formatDateTaiwan(dateInput) {
  */
 function formatTimeTaiwan(dateInput) {
   if (!dateInput) return '';
-  
+
   let date;
   if (dateInput instanceof Date) {
     date = new Date(dateInput);
   } else {
     date = new Date(dateInput);
   }
-  
+
   if (isNaN(date.getTime())) return '';
-  
+
   // 使用 Intl.DateTimeFormat 格式化為台灣時區
   const formatter = new Intl.DateTimeFormat('en-US', {
     timeZone: 'Asia/Taipei',
@@ -102,11 +102,11 @@ function formatTimeTaiwan(dateInput) {
     minute: '2-digit',
     hour12: false,
   });
-  
+
   const parts = formatter.formatToParts(date);
-  const hours = parts.find(p => p.type === 'hour').value;
-  const minutes = parts.find(p => p.type === 'minute').value;
-  
+  const hours = parts.find((p) => p.type === 'hour').value;
+  const minutes = parts.find((p) => p.type === 'minute').value;
+
   return `${hours}:${minutes}`;
 }
 
@@ -176,7 +176,11 @@ async function findShipment(orderNo, trackingNo) {
     // 處理 Origin/Destination 欄位（Lookup 可能回傳陣列）
     const normalizeFieldValue = (value) => {
       if (Array.isArray(value)) {
-        return value.find((item) => typeof item === 'string' && item.trim().length > 0) || '';
+        return (
+          value.find(
+            (item) => typeof item === 'string' && item.trim().length > 0
+          ) || ''
+        );
       }
       return typeof value === 'string' ? value : '';
     };
@@ -197,11 +201,16 @@ async function findShipment(orderNo, trackingNo) {
         .replace(/→/g, '→');
 
       if (normalized.includes('→')) {
-        const [originPart, destinationPart] = normalized.split('→').map((part) => part.trim());
+        const [originPart, destinationPart] = normalized
+          .split('→')
+          .map((part) => part.trim());
         return {
           origin: originPart || '',
           destination: destinationPart || '',
-          combined: originPart && destinationPart ? `${originPart} → ${destinationPart}` : normalized.trim(),
+          combined:
+            originPart && destinationPart
+              ? `${originPart} → ${destinationPart}`
+              : normalized.trim(),
         };
       }
 
@@ -212,7 +221,8 @@ async function findShipment(orderNo, trackingNo) {
       };
     };
 
-    const originDestinationParsed = parseOriginDestination(originDestinationRaw);
+    const originDestinationParsed =
+      parseOriginDestination(originDestinationRaw);
 
     const originValue =
       originDestinationParsed.origin ||
@@ -224,7 +234,9 @@ async function findShipment(orderNo, trackingNo) {
 
     const combinedOriginDestination =
       originDestinationParsed.combined ||
-      (originValue && destinationValue ? `${originValue} → ${destinationValue}` : '');
+      (originValue && destinationValue
+        ? `${originValue} → ${destinationValue}`
+        : '');
 
     // 轉換為統一格式
     return {

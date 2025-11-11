@@ -6,12 +6,12 @@
   .summary-search
     form.summary-form#trackingForm(action="#", method="get")
       .form-row
-        label.input-group(for="orderNo")
-          span.input-label Job No.
-          input#orderNo(type="text", name="orderNo", placeholder="e.g., TM111682", value="TM111695", required)
-        label.input-group(for="trackingNo")
-          span.input-label Tracking No.
-          input#trackingNo(type="text", name="trackingNo", placeholder="e.g., GEXVC2YF", value="X73K1UN6", required)
+        .input-group
+          label.input-label(for="orderNo") Order No.
+          input#orderNo(type="text", name="orderNo", placeholder="e.g., TM111682", required)
+        .input-group
+          label.input-label(for="trackingNo") Tracking No.
+          input#trackingNo(type="text", name="trackingNo", placeholder="e.g., GEXVC2YF", required)
         button.btn.btn--primary#submitBtn(type="submit") STATUS CHECK
       p.form-helper
         | Need help? Contact your TailorMed logistics specialist at 
