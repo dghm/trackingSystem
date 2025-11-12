@@ -436,82 +436,389 @@
     }
   }
 
-  // 渲染時間軸
-  function renderTimeline(timeline) {
-    if (!timeline || timeline.length === 0) return;
+  // Timeline 狀態與樣式對照
+  const TIMELINE_STATUS_CODES = {
+    EXECUTED: 1,
+    PROCESSING: 2,
+    INTERNATIONAL_IN_TRANSIT: 3,
+    SCHEDULED: 4,
+    ORDER_COMPLETED: 5,
+    ORDER_FINAL: 6,
+  };
+
+  const TIMELINE_STATUS_CLASS = {
+    [TIMELINE_STATUS_CODES.EXECUTED]: 'executed',
+    [TIMELINE_STATUS_CODES.PROCESSING]: 'processing',
+    [TIMELINE_STATUS_CODES.INTERNATIONAL_IN_TRANSIT]: 'international-transit',
+    [TIMELINE_STATUS_CODES.SCHEDULED]: 'scheduled',
+    [TIMELINE_STATUS_CODES.ORDER_COMPLETED]: 'order-completed',
+    [TIMELINE_STATUS_CODES.ORDER_FINAL]: 'order-final',
+  };
+
+  const MONTH_ABBR = [
+    'Jan',
+    'Feb',
+    'Mar',
+    'Apr',
+    'May',
+    'Jun',
+    'Jul',
+    'Aug',
+    'Sep',
+    'Oct',
+    'Nov',
+    'Dec',
+  ];
+
+  function parseTimelineDate(dateString) {
+    if (!dateString) return null;
+
+    const normalized = `${dateString}`.replace(/\./g, '/');
+    let parsed = new Date(normalized);
+
+    if (Number.isNaN(parsed?.getTime())) {
+      const parts = normalized.split(/[\/-]/).map((part) => part.trim());
+      if (parts.length >= 3) {
+        const [year, month, day] = parts;
+        const normalizedISO = `${year.padStart(4, '0')}-${month
+          .padStart(2, '0')
+          .replace(/[^\d]/g, '')}-${day
+          .padStart(2, '0')
+          .replace(/[^\d]/g, '')}`;
+        parsed = new Date(normalizedISO);
+      }
+    }
+
+    if (Number.isNaN(parsed?.getTime())) {
+      return null;
+    }
+
+    return parsed;
+  }
+
+  function getTimelineDateParts(dateString) {
+    const date = parseTimelineDate(dateString);
+    if (!date) {
+      return { month: '', day: '' };
+    }
+
+    const month = MONTH_ABBR[date.getMonth()];
+    const day = String(date.getDate()).padStart(2, '0');
+
+    return {
+      month,
+      day,
+    };
+  }
+
+  function deriveTimelineStatusCode(step, index, steps, options) {
+    const {
+      isDomestic,
+      isInternational,
+      isOrderCompleted,
+      processingIndex,
+      lastCompletedIndex,
+    } = options;
+    const lastIndex = steps.length - 1;
+
+    if (isOrderCompleted) {
+      return index === lastIndex
+        ? TIMELINE_STATUS_CODES.ORDER_FINAL
+        : TIMELINE_STATUS_CODES.ORDER_COMPLETED;
+    }
+
+    if (processingIndex >= 0) {
+      if (index < processingIndex) {
+        return TIMELINE_STATUS_CODES.EXECUTED;
+      }
+      if (index === processingIndex) {
+        if (isInternational && step.title && /in\s*transit/i.test(step.title)) {
+          return TIMELINE_STATUS_CODES.INTERNATIONAL_IN_TRANSIT;
+        }
+        return TIMELINE_STATUS_CODES.PROCESSING;
+      }
+      return TIMELINE_STATUS_CODES.SCHEDULED;
+    }
+
+    if (step.status === 'completed') {
+      return TIMELINE_STATUS_CODES.EXECUTED;
+    }
+
+    if (step.status === 'processing') {
+      if (isInternational && step.title && /in\s*transit/i.test(step.title)) {
+        return TIMELINE_STATUS_CODES.INTERNATIONAL_IN_TRANSIT;
+      }
+      return TIMELINE_STATUS_CODES.PROCESSING;
+    }
+
+    if (lastCompletedIndex >= 0 && index <= lastCompletedIndex) {
+      return TIMELINE_STATUS_CODES.EXECUTED;
+    }
+
+    return TIMELINE_STATUS_CODES.SCHEDULED;
+  }
+
+  function renderTimeline(shipmentData) {
+    if (!shipmentData) return;
+
+    const timeline = Array.isArray(shipmentData.timeline)
+      ? shipmentData.timeline
+      : [];
+    if (timeline.length === 0) return;
+
+    const transportType = (shipmentData.transportType || '').toLowerCase();
+    const isDomestic = transportType === 'domestic';
+    const isInternational =
+      transportType.includes('international') ||
+      transportType.includes('import') ||
+      transportType.includes('export') ||
+      transportType.includes('cross') ||
+      transportType.includes('imex');
 
     const timelinePlaceholder = document.querySelector('.timeline-placeholder');
     if (timelinePlaceholder) {
       timelinePlaceholder.classList.add('is-hidden');
     }
 
-    // 計算進度百分比（排除 event 項目）
-    const steps = timeline.filter((item) => item.step !== null);
-    const completedSteps = steps.filter(
-      (item) => item.status === 'completed'
-    ).length;
-    const progressPercentage = (completedSteps / (steps.length - 1)) * 100;
+    const stepItems = timeline
+      .filter((item) => !item.isEvent)
+      .sort((a, b) => {
+        const stepA = typeof a.step === 'number' ? a.step : 0;
+        const stepB = typeof b.step === 'number' ? b.step : 0;
+        return stepA - stepB;
+      });
 
-    // 更新進度條
+    if (stepItems.length === 0) {
+      return;
+    }
+
+    const isOrderCompleted = stepItems.every(
+      (step) => step.isOrderCompleted === true
+    );
+
+    const processingIndex = stepItems.findIndex(
+      (step) => step.status === 'processing'
+    );
+    let lastCompletedIndex = -1;
+    stepItems.forEach((step, idx) => {
+      if (step.status === 'completed') {
+        lastCompletedIndex = idx;
+      }
+    });
+
+    const processedSteps = stepItems.map((step, index) => {
+      const statusCode = deriveTimelineStatusCode(step, index, stepItems, {
+        isDomestic,
+        isInternational,
+        isOrderCompleted,
+        processingIndex,
+        lastCompletedIndex,
+      });
+
+      const isProcessingStatus =
+        statusCode === TIMELINE_STATUS_CODES.PROCESSING ||
+        statusCode === TIMELINE_STATUS_CODES.INTERNATIONAL_IN_TRANSIT;
+
+      const displayDate = isProcessingStatus ? '' : step.date;
+      const displayMonth = isProcessingStatus ? 'TBD' : undefined;
+      const displayDay = isProcessingStatus ? '' : undefined;
+      let displayTime = step.time;
+
+      if (
+        statusCode === TIMELINE_STATUS_CODES.PROCESSING ||
+        statusCode === TIMELINE_STATUS_CODES.INTERNATIONAL_IN_TRANSIT
+      ) {
+        displayTime = 'Processing...';
+      } else if (statusCode === TIMELINE_STATUS_CODES.SCHEDULED) {
+        displayTime = '--:--';
+      }
+
+      return {
+        ...step,
+        date: displayDate,
+        time: displayTime,
+        monthOverride: displayMonth,
+        dayOverride: displayDay,
+        statusCode,
+        isProcessingStatus,
+        statusClass: TIMELINE_STATUS_CLASS[statusCode] || 'scheduled',
+      };
+    });
+
+    // 計算進度百分比
     const progressBar = document.querySelector('.timeline-progress');
     if (progressBar) {
-      progressBar.style.width = `${progressPercentage}%`;
+      const executedStatuses = [
+        TIMELINE_STATUS_CODES.EXECUTED,
+        TIMELINE_STATUS_CODES.ORDER_COMPLETED,
+        TIMELINE_STATUS_CODES.ORDER_FINAL,
+      ];
+      const executedCount = processedSteps.filter((step) =>
+        executedStatuses.includes(step.statusCode)
+      ).length;
+      const progressRatio =
+        processedSteps.length === 0
+          ? 0
+          : Math.min(1, executedCount / processedSteps.length);
+      progressBar.style.width = `${Math.round(progressRatio * 100)}%`;
+    }
+
+    const timelineVisual = resultsPanel?.querySelector('.timeline-visual');
+    const timelineConnector = timelineVisual?.querySelector(
+      '.timeline-connector'
+    );
+    if (timelineConnector) {
+      const lastActiveIndex = processedSteps.reduce((acc, step, idx) => {
+        if (step.statusCode !== TIMELINE_STATUS_CODES.SCHEDULED) {
+          return idx;
+        }
+        return acc;
+      }, -1);
+
+      let connectorWidthPercent = 0;
+
+      if (isDomestic && processedSteps.length === 4) {
+        const domesticPreset = [0, 40, 70, 99];
+        const executedStatusCodes = new Set([
+          TIMELINE_STATUS_CODES.EXECUTED,
+          TIMELINE_STATUS_CODES.ORDER_COMPLETED,
+          TIMELINE_STATUS_CODES.ORDER_FINAL,
+        ]);
+
+        const lastExecutedIndex = processedSteps.reduce((acc, step, idx) => {
+          if (executedStatusCodes.has(step.statusCode)) {
+            return idx;
+          }
+          return acc;
+        }, -1);
+
+        const stageIndex = Math.max(
+          0,
+          Math.min(lastExecutedIndex + 1, domesticPreset.length - 1)
+        );
+        connectorWidthPercent = domesticPreset[stageIndex];
+      } else {
+        const connectorRatio =
+          processedSteps.length === 0
+            ? 0
+            : lastActiveIndex < 0
+            ? 0
+            : Math.min(1, (lastActiveIndex + 1) / processedSteps.length);
+        connectorWidthPercent = Math.round(connectorRatio * 100);
+      }
+
+      timelineConnector.style.setProperty(
+        '--timeline-progress-width',
+        `${connectorWidthPercent}%`
+      );
     }
 
     // 更新 timeline nodes
-    const timelineNodes = document.querySelector('.timeline-nodes');
+    let timelineNodes =
+      resultsPanel?.querySelector('.timeline-nodes-container') ||
+      resultsPanel?.querySelector('.timeline-nodes');
+
+    if (!timelineNodes && timelineVisual) {
+      timelineNodes = document.createElement('div');
+      timelineNodes.className = 'timeline-nodes-container';
+      timelineVisual.appendChild(timelineNodes);
+    } else if (
+      timelineNodes &&
+      !timelineNodes.classList.contains('timeline-nodes-container')
+    ) {
+      timelineNodes.classList.add('timeline-nodes-container');
+    }
+
     if (timelineNodes) {
       timelineNodes.innerHTML = '';
-
-      timeline.forEach((item) => {
-        // 跳過 event 項目（它們會顯示在別處）
-        if (item.step === null) return;
-
+      processedSteps.forEach((item) => {
         const node = document.createElement('div');
-        node.className = `timeline-node ${item.status}`;
-        node.setAttribute('data-step', item.step);
+        node.className = [
+          'timeline-node',
+          item.status || '',
+          `timeline-node--status-${item.statusCode}`,
+          `timeline-node--${item.statusClass}`,
+        ]
+          .filter(Boolean)
+          .join(' ');
+        if (item.step !== undefined) {
+          node.setAttribute('data-step', item.step);
+        }
+        node.setAttribute('data-status-code', String(item.statusCode));
+        node.setAttribute('data-status', item.statusClass);
+
+        const { month, day } = getTimelineDateParts(item.date);
+        const displayMonth = item.monthOverride ?? month;
+        const displayDay = item.dayOverride ?? day;
+        const displayTime = item.time || '';
         node.innerHTML = `
-        <div class="node-dot"></div>
-        <div class="node-icon">${item.step}</div>
+        <div class="node-date">
+          <span class="month">${displayMonth}</span>
+          <span class="day">${displayDay}</span>
+        </div>
+        <div class="node-icon">
+          <div class="node-circle"></div>
+        </div>
+        <div class="node-info">
+          <div class="node-status">${item.title || ''}</div>
+          <p class="node-time">${displayTime}</p>
+        </div>
       `;
         timelineNodes.appendChild(node);
       });
     }
 
     // 更新 timeline cards
-    const timelineCards = document.querySelector('.timeline-cards');
+    let timelineCards = resultsPanel?.querySelector('.timeline-cards');
+    if (!timelineCards) {
+      timelineCards = document.createElement('div');
+      timelineCards.className = 'timeline-cards';
+      if (timelineVisual) {
+        timelineVisual.appendChild(timelineCards);
+      }
+    }
     if (timelineCards) {
       timelineCards.innerHTML = '';
 
-      timeline.forEach((item) => {
+      processedSteps.forEach((item) => {
         const card = document.createElement('div');
 
-        if (item.isEvent) {
-          // Dry Ice Event Card
-          card.className = 'timeline-card event';
-          card.innerHTML = `
-          <div class="card-icon">
-            <img class="card-icon-img icon-default" src="images/icon-dryice.svg" alt="Dry Ice">
-            <img class="card-icon-img icon-hover" src="images/icon-dryice_hover.svg" alt="Dry Ice Hover">
-          </div>
-          <div class="card-content">
-            <h3 class="card-title">${item.title}</h3>
-            <p class="card-time">${item.time}</p>
-          </div>
-        `;
-        } else {
-          // 一般步驟 Card
-          card.className = `timeline-card ${item.status}`;
+        card.className = [
+          'timeline-card',
+          item.status || '',
+          `timeline-card--status-${item.statusCode}`,
+          `timeline-card--${item.statusClass}`,
+        ]
+          .filter(Boolean)
+          .join(' ');
+        if (item.step !== undefined) {
           card.setAttribute('data-step', item.step);
-          card.innerHTML = `
-          <div class="card-step">Step ${item.step}</div>
-          <div class="card-content">
-            <h3 class="card-title">${item.title}</h3>
-            <p class="card-time">${item.time}</p>
-          </div>
-        `;
         }
+        card.setAttribute('data-status-code', String(item.statusCode));
+        const displayCardTime = item.time || '';
+        card.innerHTML = `
+        <div class="card-step">Step ${item.step ?? ''}</div>
+        <div class="card-content">
+          <h3 class="card-title">${item.title || ''}</h3>
+          <p class="card-time">${displayCardTime}</p>
+        </div>
+      `;
 
+        timelineCards.appendChild(card);
+      });
+
+      // 事件卡片（如 Dry Ice）
+      const eventItems = timeline.filter((item) => item.isEvent);
+      eventItems.forEach((eventItem) => {
+        const card = document.createElement('div');
+        card.className = 'timeline-card event';
+        card.innerHTML = `
+        <div class="card-step">Event</div>
+        <div class="card-content">
+          <h3 class="card-title">${eventItem.title || ''}</h3>
+          <p class="card-time">${eventItem.time || ''}</p>
+        </div>
+      `;
         timelineCards.appendChild(card);
       });
     }
@@ -520,14 +827,16 @@
     const dryIceEvent = timeline.find(
       (item) => item.isEvent && item.eventType === 'dryice'
     );
-    if (dryIceEvent) {
-      const eventIcon = document.querySelector('.timeline-event-icon');
-      if (!eventIcon && timelineNodes) {
+    if (timelineVisual) {
+      const existingIcon = timelineVisual.querySelector('.timeline-event-icon');
+      if (!dryIceEvent && existingIcon) {
+        existingIcon.remove();
+      } else if (dryIceEvent && !existingIcon) {
         const icon = document.createElement('div');
         icon.className = 'timeline-event-icon';
         icon.innerHTML =
           '<img src="images/icon-dryice.svg" alt="Dry Ice Refilled">';
-        timelineNodes.parentElement.appendChild(icon);
+        timelineVisual.appendChild(icon);
       }
     }
   }
@@ -603,7 +912,7 @@
 
     // 渲染資料
     renderShipmentInfo(result);
-    renderTimeline(result.timeline);
+    renderTimeline(result);
 
     // 更新 URL (不刷新頁面)
     const url = new URL(window.location);

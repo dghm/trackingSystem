@@ -297,6 +297,52 @@ p
   align-items center
   gap 24px
 
+.static-preview
+  width 100%
+  max-width 1200px
+  display flex
+  flex-direction column
+  align-items stretch
+  gap 12px
+  text-align left
+
+  .static-preview__title
+    font-size 1rem
+    font-weight 600
+    color rgba(12, 48, 88, 0.55)
+
+  .static-preview__note
+    font-size 0.85rem
+    color rgba(12, 48, 88, 0.45)
+    margin-bottom 12px
+
+  .timeline-previews-gallery
+    display grid
+    grid-template-columns 1fr
+    gap 24px
+
+    .timeline-preview-item__title
+      font-size 0.95rem
+      font-weight 600
+      color primary-color
+      margin-bottom 8px
+
+    .timeline-preview
+      background rgba(neutral-light, 0.12)
+      border 1px solid rgba(primary-color, 0.1)
+      border-radius 12px
+      padding 16px
+
+  +respond(laptop)
+    .timeline-previews-gallery
+      grid-template-columns repeat(2, minmax(0, 1fr))
+
+  +respond(tablet)
+    .timeline-previews-gallery
+      grid-template-columns 1fr
+      gap 18px
+
+
 .system-description
   padding 40px 0
 

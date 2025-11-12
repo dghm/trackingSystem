@@ -30,8 +30,58 @@ html(lang="zh-TW")
       //- 1. Shipment Tracking Lookup
       include components/lookupPanel.pug
 
-      //- 2. Latest shipment updates
+      //- 2. Latest shipment updates（動態區塊）
       include components/resultsPanel.pug
+
+      //- 3. 靜態範例區塊，方便設計調整
+      section(static-preview).static-preview
+        h3.static-preview__title 樣式預覽：查詢結果區塊
+        p.static-preview__note （此區僅供排版使用，上線時請移除或關閉）
+        .results-panel.results-panel--static.is-active
+          h2.results-title Latest Shipment Updates
+          .results-container
+            .results-highlight
+              .summary-grid
+                .summary-field
+                  span.field-label Order No.
+                  span.field-value TM111682
+                .summary-field
+                  span.field-label Original/Destination
+                  span.field-value TPE → SFO
+                .summary-field
+                  span.field-label Package Count
+                  span.field-value 3
+                .summary-field
+                  span.field-label Weight
+                  span.field-value 24 KG
+                .summary-field
+                  span.field-label ETA
+                  span.field-value 12/11/2025
+            .status-info
+              .summary-field
+                span.field-label Tracking No.
+                span.field-value GEXVC2YF
+              .summary-field.status-field
+                span.field-label Status
+                span.field-value.status-inline.status-in-transit In Transit
+              .summary-field
+                span.field-label Last Update
+                span.field-value 2025-11-11 14:35 GMT+8
+          .timeline-content
+            h3.timeline-title Shipment History
+            p.timeline-description Track your shipment through each milestone
+            .timeline-previews-gallery
+              .timeline-preview-item.timeline-preview-item--dev
+                h4.timeline-preview-item__title Development Preview｜Testing
+                include components/timeline/devPreview.pug
+              .timeline-preview-item
+                h4.timeline-preview-item__title Domestic｜In Progress
+                include components/timeline/domesticDynamic.pug
+              .timeline-preview-item
+                h4.timeline-preview-item__title International｜In Progress
+                include components/timeline/imexDynamic.pug
+            include components/timelineIconLegend.pug
+          p.results-note This information is NOT updated in real-time. For the most current status, please refresh this page or contact our customer service team.
 
       section.system-description
         .container

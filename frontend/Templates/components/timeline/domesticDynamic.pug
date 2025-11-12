@@ -1,0 +1,42 @@
+//- Domestic (Dynamic) Timeline Preview
+.timeline-preview.timeline-preview--domestic(data-variant="domestic-dynamic")
+  .timeline-visual.timeline-visual--domestic
+    .timeline-track
+    .timeline-connector(style="--timeline-progress-width: 40%")
+    .timeline-nodes-container
+      .timeline-node.timeline-node--status-1.timeline-node--executed(data-status-code="1", data-step="1")
+        .node-date
+          span.month Nov
+          span.day 10
+        .node-icon
+          .node-circle
+        .node-info
+          .node-status Order Created
+          p.node-time 09:00
+      .timeline-node.timeline-node--status-2.timeline-node--processing(data-status-code="2", data-step="2")
+        .node-date
+          span.month TBD
+          span.day
+        .node-icon
+          .node-circle
+        .node-info
+          .node-status Shipment Collected
+          p.node-time Processing...
+      .timeline-node.timeline-node--status-4.timeline-node--scheduled(data-status-code="4", data-step="3")
+        .node-date
+          span.month TBD
+          span.day
+        .node-icon
+          .node-circle
+        .node-info
+          .node-status In Transit
+          p.node-time --:--
+      .timeline-node.timeline-node--status-4.timeline-node--scheduled(data-status-code="4", data-step="4")
+        .node-date
+          span.month TBD
+          span.day
+        .node-icon
+          .node-circle
+        .node-info
+          .node-status Shipment Delivered
+          p.node-time --:--

@@ -1,0 +1,81 @@
+//- International (In Progress) Timeline Preview
+.timeline-preview.timeline-preview--imex(data-variant="imex-dynamic")
+  .timeline-visual.timeline-visual--imex
+    .timeline-track
+    .timeline-connector
+    .timeline-nodes-container
+      .timeline-node.completed(data-step="1")
+        .node-date
+          span.month Nov
+          span.day 05
+        .node-icon
+          .node-circle
+        .node-info
+          .node-status Export Pickup
+          p.node-time 07:50｜Taipei
+      .timeline-node.completed(data-step="2")
+        .node-date
+          span.month Nov
+          span.day 05
+        .node-icon
+          .node-circle
+        .node-info
+          .node-status Export Hub Processing
+          p.node-time 10:25｜Taoyuan Hub
+      .timeline-node.processing(data-step="3")
+        .node-date
+          span.month Nov
+          span.day 05
+        .node-icon
+          .node-circle
+        .node-info
+          .node-status Export Customs
+          p.node-time 14:10｜TPE Customs
+      .timeline-node.processing(data-step="4")
+        .node-date
+          span.month Nov
+          span.day 05
+        .node-icon
+          .node-circle
+        .node-info
+          .node-status In Flight
+          p.node-time 19:30｜Flight TM827
+      .timeline-node.pending(data-step="5")
+        .node-date
+          span.month Nov
+          span.day 06
+        .node-icon
+          .node-circle
+        .node-info
+          .node-status Import Customs
+          p.node-time ETA 07:45｜SFO
+      .timeline-node.pending(data-step="6")
+        .node-date
+          span.month Nov
+          span.day 06
+        .node-icon
+          .node-circle
+        .node-info
+          .node-status Cold Chain Transfer
+          p.node-time Scheduled｜SFO Hub
+      .timeline-node.pending(data-step="7")
+        .node-date
+          span.month Nov
+          span.day 07
+        .node-icon
+          .node-circle
+        .node-info
+          .node-status Final Delivery
+          p.node-time ETA 11:30｜Client Site
+    .timeline-events
+      .event-dryice-refilled(data-step="3")
+        .event-circle
+        .event-tag
+          span.event-tag-text Dry Ice Refilled
+          img.event-tag-icon(src="./images/icon-dryice.svg", alt="Dry Ice Refilled")
+      .event-temperature-check(data-step="5")
+        .event-circle
+        .event-tag
+          span.event-tag-text Temperature Check Passed
+          img.event-tag-icon(src="./images/icon-dryice.svg", alt="Temperature Check")
+
