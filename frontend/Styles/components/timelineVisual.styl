@@ -9,6 +9,11 @@
   margin 0
   width 100%
   
+  &.timeline-visual--order-final
+    .timeline-connector
+      &::after
+        background prColor
+
   // Timeline Track (桌面版隱藏)
   .timeline-track
     display none
@@ -61,6 +66,7 @@
 .timeline-preview--domestic-completed
   .timeline-nodes-container
     .timeline-node
+      pointer-events none
       .node-date
         .month,
         .day
@@ -73,7 +79,7 @@
         border-radius 50%
         width 40px
         height 40px
-        transition all 0.3s ease
+        transition none
         &::before
           background base-white
         &::after
@@ -93,14 +99,6 @@
             display none
         .node-time
           color neutral-gray
-      &:hover
-        .node-circle
-          transform scale(1.1)
-          box-shadow 0 4px 12px rgba(20, 52, 99, 0.3)
-          &::before
-            background primary-color
-          &::after
-            filter brightness(0) invert(1)
     .timeline-node:nth-child(2),
     .timeline-node:nth-child(3),
     .timeline-node:nth-child(4)
@@ -109,6 +107,9 @@
         &::after
           background-image url('../images/icon-check.svg')
           filter brightness(0) invert(1)
+  .timeline-connector
+    &::after
+      background prColor
 
 // Mobile Styles
 // 注意：Mobile 樣式需要嵌套在 .results-panel .timeline-content 下

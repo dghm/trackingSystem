@@ -31,3 +31,16 @@
 | 5    | Destination Customs Process |
 | 6    | Out for Delivery            |
 | 7    | Shipment Delivered          |
+
+### International 事件顯示條件
+
+- **事件一：Dry Ice Refilled (Terminal)**
+
+  - 狀態序列須符合 `a, a, a, a, a, d, d`（前五步為已完成 `a`，後兩步為待處理 `d`）。
+  - 並且資料表中的對應欄位為勾選（True），可視為 `a, a, a, a, a, T, d, d`。
+  - 若狀態符合但欄位未勾選（例：`a, a, a, a, a, F, d, d`），事件一不顯示。
+  - 只要其前一個節點不是 `a`（例如為 `c` 或 `d`），無論資料表是否勾選，事件一都不顯示。
+
+- **事件二：Dry Ice Refilled**
+  - 套用相同邏輯：事件落點前一個節點必須是 `a`，並且資料欄位勾選（True）才顯示。
+  - 若前一個節點為 `c` 或 `d`，或資料欄位未勾選，即使其他條件符合也不顯示。

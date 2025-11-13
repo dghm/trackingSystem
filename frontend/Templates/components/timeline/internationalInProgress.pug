@@ -1,0 +1,74 @@
+.timeline-preview.timeline-preview--international(data-variant="international-in-progress")
+  .timeline-visual.timeline-visual--imex
+    .timeline-track
+    .timeline-connector(style="--timeline-progress-width: 85%")
+    .timeline-nodes-container
+      .timeline-node.timeline-node--status-1.timeline-node--executed(data-status-code="1", data-step="1")
+        .node-date
+          span.month Nov
+          span.day 05
+        .node-icon
+          .node-circle
+        .node-info
+          .node-status Order Created
+          p.node-time 07:50
+      .timeline-node.timeline-node--status-1.timeline-node--executed(data-status-code="1", data-step="2")
+        .node-date
+          span.month Nov
+          span.day 05
+        .node-icon
+          .node-circle
+        .node-info
+          .node-status Shipment Collected
+          p.node-time 10:25
+      .timeline-node.timeline-node--status-1.timeline-node--executed(data-status-code="1", data-step="3")
+        .node-date
+          span.month Nov
+          span.day 05
+        .node-icon
+          .node-circle
+        .node-info
+          .node-status Origin Customs Process
+          p.node-time 12:05
+      .timeline-node.timeline-node--status-1.timeline-node--executed(data-status-code="1", data-step="4")
+        .node-date
+          span.month Nov
+          span.day 05
+        .node-icon
+          .node-circle
+        .node-info
+          .node-status In Transit
+          p.node-time 16:40
+      .timeline-node.timeline-node--status-1.timeline-node--executed(data-status-code="1", data-step="5")
+        .node-date
+          span.month Nov
+          span.day 06
+        .node-icon
+          .node-circle
+        .node-info
+          .node-status Destination Customs Process
+          p.node-time 08:10
+      .timeline-node.timeline-node--status-2.timeline-node--processing(data-status-code="2", data-step="6")
+        .node-date
+          span.month TBD
+          span.day
+        .node-icon
+          .node-circle
+        .node-info
+          .node-status Out for Delivery
+          p.node-time Processing...
+      .timeline-node.timeline-node--status-4.timeline-node--scheduled(data-status-code="4", data-step="7")
+        .node-date
+          span.month TBD
+          span.day
+        .node-icon
+          .node-circle
+        .node-info
+          .node-status Shipment Delivered
+          p.node-time --:--
+    .timeline-events
+      .event-dryice-refilled(data-step="4")
+        .event-circle
+        .event-tag
+          span.event-tag-text Dry Ice Refilled<br/>(Terminal)
+          img.event-tag-icon(src="./images/icon-dryice.svg", alt="Dry Ice Refilled")

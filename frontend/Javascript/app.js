@@ -403,10 +403,8 @@
     // 更新狀態資訊
     const statusInfo = document.querySelector('.status-info');
     if (statusInfo) {
-      // 檢查是否有 Dry Ice Event
-      const hasDryIceEvent = shipmentData.timeline?.some(
-        (item) => item.isEvent && item.eventType === 'dryice'
-      );
+      const eventVisibility = evaluateDryIceEvents(shipmentData);
+      const hasDryIceEvent = eventVisibility.hasAnyEvent;
 
       statusInfo.innerHTML = `
       <div class="summary-field">
@@ -454,6 +452,152 @@
     [TIMELINE_STATUS_CODES.ORDER_COMPLETED]: 'order-completed',
     [TIMELINE_STATUS_CODES.ORDER_FINAL]: 'order-final',
   };
+
+  function mapStatusCodeToLetter(statusCode) {
+    switch (statusCode) {
+      case TIMELINE_STATUS_CODES.EXECUTED:
+        return 'a';
+      case TIMELINE_STATUS_CODES.PROCESSING:
+        return 'b';
+      case TIMELINE_STATUS_CODES.INTERNATIONAL_IN_TRANSIT:
+        return 'c';
+      case TIMELINE_STATUS_CODES.SCHEDULED:
+        return 'd';
+      case TIMELINE_STATUS_CODES.ORDER_COMPLETED:
+        return 'e';
+      case TIMELINE_STATUS_CODES.ORDER_FINAL:
+        return 'f';
+      default:
+        return '';
+    }
+  }
+
+  function mapStatusStringToLetter(status) {
+    const normalized = (status || '').toString().trim().toLowerCase();
+    if (normalized === 'completed') return 'a';
+    if (normalized === 'processing') return 'b';
+    if (normalized === 'pending') return 'd';
+    if (normalized.includes('order') && normalized.includes('final'))
+      return 'f';
+    if (normalized.includes('order') && normalized.includes('complete'))
+      return 'e';
+    return 'd';
+  }
+
+  function normalizeCheckboxValue(value) {
+    if (Array.isArray(value)) {
+      return value.some((item) => normalizeCheckboxValue(item));
+    }
+    if (typeof value === 'string') {
+      const normalized = value.trim().toLowerCase();
+      return (
+        normalized === 'true' ||
+        normalized === '1' ||
+        normalized === 'yes' ||
+        normalized === 'checked' ||
+        normalized === 'y'
+      );
+    }
+    if (typeof value === 'number') {
+      return value === 1;
+    }
+    return Boolean(value);
+  }
+
+  function evaluateDryIceEvents(shipmentData, processedSteps) {
+    const rawFields = shipmentData?._raw || {};
+    const timeline = Array.isArray(shipmentData?.timeline)
+      ? shipmentData.timeline.slice()
+      : [];
+
+    const transportType = (shipmentData?.transportType || '').toLowerCase();
+    const isInternational =
+      transportType.includes('international') ||
+      transportType.includes('import') ||
+      transportType.includes('export') ||
+      transportType.includes('cross') ||
+      transportType.includes('imex');
+
+    const events = timeline.filter((item) => item.isEvent);
+
+    if (!isInternational) {
+      return {
+        shouldShowEventOne: false,
+        shouldShowEventTwo: false,
+        filteredEvents: events,
+        hasAnyEvent: events.length > 0,
+      };
+    }
+
+    const normalizeTitle = (value) =>
+      (value || '').toString().replace(/\s+/g, ' ').trim().toLowerCase();
+
+    const stepsSource = processedSteps
+      ? processedSteps.map((step) => ({
+          title: step.title || '',
+          letter: mapStatusCodeToLetter(step.statusCode),
+        }))
+      : timeline
+          .filter((item) => !item.isEvent)
+          .sort((a, b) => (a.step || 0) - (b.step || 0))
+          .map((item) => ({
+            title: item.title || '',
+            letter: mapStatusStringToLetter(item.status || ''),
+          }));
+
+    const statusLetters = stepsSource.map((item) => item.letter);
+
+    const matchesInternationalPattern =
+      statusLetters.length >= 7 &&
+      statusLetters.slice(0, 5).every((letter) => letter === 'a') &&
+      statusLetters.slice(5, 7).every((letter) => letter === 'd');
+
+    const getLetterByTitle = (title) => {
+      const normalized = normalizeTitle(title);
+      const found = stepsSource.find(
+        (item) => normalizeTitle(item.title) === normalized
+      );
+      return found ? found.letter : null;
+    };
+
+    const inTransitLetter = getLetterByTitle('In Transit');
+    const destCustomsLetter = getLetterByTitle('Destination Customs Process');
+
+    const getCheckboxValue = (fieldName) => {
+      const value =
+        rawFields[fieldName] !== undefined
+          ? rawFields[fieldName]
+          : shipmentData?.[fieldName];
+      return normalizeCheckboxValue(value);
+    };
+
+    const terminalChecked = getCheckboxValue('Dry Ice Refilled(Terminal)');
+    const dryIceChecked = getCheckboxValue('Dry Ice Refilled');
+
+    const shouldShowEventOne =
+      matchesInternationalPattern && terminalChecked && inTransitLetter === 'a';
+
+    const shouldShowEventTwo =
+      matchesInternationalPattern && dryIceChecked && destCustomsLetter === 'a';
+
+    const filteredEvents = events.filter((eventItem) => {
+      const titleNormalized = normalizeTitle(eventItem.title);
+      if (titleNormalized === 'dry ice refilled(terminal)') {
+        return shouldShowEventOne;
+      }
+      if (titleNormalized === 'dry ice refilled') {
+        return shouldShowEventTwo;
+      }
+      return true;
+    });
+
+    return {
+      shouldShowEventOne,
+      shouldShowEventTwo,
+      filteredEvents,
+      hasAnyEvent: filteredEvents.length > 0,
+    };
+  }
 
   const MONTH_ABBR = [
     'Jan',
@@ -645,6 +789,9 @@
       };
     });
 
+    const eventVisibility = evaluateDryIceEvents(shipmentData, processedSteps);
+    const filteredEventItems = eventVisibility.filteredEvents;
+
     // 計算進度百分比
     const progressBar = document.querySelector('.timeline-progress');
     if (progressBar) {
@@ -667,6 +814,15 @@
     const timelineConnector = timelineVisual?.querySelector(
       '.timeline-connector'
     );
+    if (timelineVisual) {
+      const hasFinalStatus = processedSteps.some(
+        (step) => step.statusCode === TIMELINE_STATUS_CODES.ORDER_FINAL
+      );
+      timelineVisual.classList.toggle(
+        'timeline-visual--order-final',
+        hasFinalStatus
+      );
+    }
     if (timelineConnector) {
       const lastActiveIndex = processedSteps.reduce((acc, step, idx) => {
         if (step.statusCode !== TIMELINE_STATUS_CODES.SCHEDULED) {
@@ -697,6 +853,25 @@
           Math.min(lastExecutedIndex + 1, domesticPreset.length - 1)
         );
         connectorWidthPercent = domesticPreset[stageIndex];
+      } else if (isInternational && processedSteps.length === 7) {
+        const internationalPreset = [5, 21, 38, 53, 68, 85, 97];
+        const executedStatusCodes = new Set([
+          TIMELINE_STATUS_CODES.EXECUTED,
+          TIMELINE_STATUS_CODES.INTERNATIONAL_IN_TRANSIT,
+        ]);
+
+        const lastExecutedIndex = processedSteps.reduce((acc, step, idx) => {
+          if (executedStatusCodes.has(step.statusCode)) {
+            return idx;
+          }
+          return acc;
+        }, -1);
+
+        const stageIndex = Math.max(
+          0,
+          Math.min(lastExecutedIndex + 1, internationalPreset.length - 1)
+        );
+        connectorWidthPercent = internationalPreset[stageIndex];
       } else {
         const connectorRatio =
           processedSteps.length === 0
@@ -808,8 +983,7 @@
       });
 
       // 事件卡片（如 Dry Ice）
-      const eventItems = timeline.filter((item) => item.isEvent);
-      eventItems.forEach((eventItem) => {
+      filteredEventItems.forEach((eventItem) => {
         const card = document.createElement('div');
         card.className = 'timeline-card event';
         card.innerHTML = `
@@ -824,8 +998,8 @@
     }
 
     // 如果有 Dry Ice Event，添加時間軸圖示
-    const dryIceEvent = timeline.find(
-      (item) => item.isEvent && item.eventType === 'dryice'
+    const dryIceEvent = filteredEventItems.find(
+      (item) => item.eventType === 'dryice'
     );
     if (timelineVisual) {
       const existingIcon = timelineVisual.querySelector('.timeline-event-icon');
@@ -837,6 +1011,17 @@
         icon.innerHTML =
           '<img src="images/icon-dryice.svg" alt="Dry Ice Refilled">';
         timelineVisual.appendChild(icon);
+      }
+    }
+
+    const statusIconWrapper = resultsPanel?.querySelector(
+      '.status-icon-wrapper'
+    );
+    if (statusIconWrapper) {
+      if (dryIceEvent) {
+        statusIconWrapper.style.display = '';
+      } else {
+        statusIconWrapper.remove();
       }
     }
   }

@@ -71,15 +71,21 @@ html(lang="zh-TW")
             h3.timeline-title Shipment History
             p.timeline-description Track your shipment through each milestone
             .timeline-previews-gallery
-              .timeline-preview-item.timeline-preview-item--dev
-                h4.timeline-preview-item__title Development Preview｜Testing
-                include components/timeline/devPreview.pug
+              .timeline-preview-item.timeline-preview-item--international
+                h4.timeline-preview-item__title International｜In Progress
+                include components/timeline/internationalInProgress.pug
+              .timeline-preview-item.timeline-preview-item--international
+                h4.timeline-preview-item__title International｜Shipment Delivered
+                include components/timeline/internationalCompleted.pug
               .timeline-preview-item
                 h4.timeline-preview-item__title Domestic｜In Progress
                 include components/timeline/domesticDynamic.pug
               .timeline-preview-item
-                h4.timeline-preview-item__title International｜In Progress
-                include components/timeline/imexDynamic.pug
+                h4.timeline-preview-item__title Domestic｜Shipment Delivered
+                include components/timeline/domesticCompleted.pug
+              .timeline-preview-item.timeline-preview-item--dev
+                h4.timeline-preview-item__title Shipment Node Status Preview
+                include components/timeline/nodePreview.pug
             include components/timelineIconLegend.pug
           p.results-note This information is NOT updated in real-time. For the most current status, please refresh this page or contact our customer service team.
 
