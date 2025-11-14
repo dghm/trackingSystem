@@ -527,6 +527,10 @@
     return value.replace(/\s+/g, ' ').trim().toLowerCase();
   }
 
+  function isCompletedLetter(letter) {
+    return letter === 'a' || letter === 'e' || letter === 'f';
+  }
+
   function evaluateDryIceEvents(shipmentData, processedSteps) {
     const rawFields = shipmentData?._raw || {};
     const timeline = Array.isArray(shipmentData?.timeline)
@@ -601,18 +605,18 @@
     const dryIceChecked = getCheckboxValue('Dry Ice Refilled');
 
     const shouldShowEventOne =
-      terminalChecked && inTransitLetter && inTransitLetter === 'a';
+      terminalChecked && inTransitLetter && isCompletedLetter(inTransitLetter);
 
     const shouldShowEventTwo =
-      dryIceChecked && destCustomsLetter && destCustomsLetter === 'a';
+      dryIceChecked && destCustomsLetter && isCompletedLetter(destCustomsLetter);
 
     const filteredEvents = enhancedEvents.filter((eventItem) => {
       const titleNormalized = normalizeEventTitle(eventItem.title);
       if (titleNormalized === 'dry ice refilled(terminal)') {
-        return shouldShowEventOne || inTransitLetter === 'a';
+        return shouldShowEventOne || isCompletedLetter(inTransitLetter);
       }
       if (titleNormalized === 'dry ice refilled') {
-        return shouldShowEventTwo || destCustomsLetter === 'a';
+        return shouldShowEventTwo || isCompletedLetter(destCustomsLetter);
       }
       return true;
     });
@@ -897,7 +901,7 @@
         mobileTrackHeightPercent = 100;
       } else if (isDomestic && processedSteps.length === 4) {
         const domesticPreset = [0, 40, 70, 99];
-        const domesticMobilePreset = [13, 38, 66, 88];
+        const domesticMobilePreset = [13, 42, 68, 88];
         const executedStatusCodes = new Set([
           TIMELINE_STATUS_CODES.EXECUTED,
           TIMELINE_STATUS_CODES.ORDER_COMPLETED,
@@ -1012,6 +1016,10 @@
         const displayMonth = item.monthOverride ?? month;
         const displayDay = item.dayOverride ?? day;
         const displayTime = item.time || '';
+        const nodeCircleClasses = ['node-circle'];
+        if (item.statusCode === TIMELINE_STATUS_CODES.ORDER_FINAL) {
+          nodeCircleClasses.push('node-circle--order-final');
+        }
         node.innerHTML = `
         <div class="node-date" data-month="${displayMonth}" data-day="${displayDay}">
           <span class="month">${displayMonth}</span>
@@ -1019,7 +1027,7 @@
           <span class="day">${displayDay}</span>
         </div>
         <div class="node-icon">
-          <div class="node-circle"></div>
+          <div class="${nodeCircleClasses.join(' ')}"></div>
         </div>
         <div class="node-info">
           <div class="node-status">${item.title || ''}</div>

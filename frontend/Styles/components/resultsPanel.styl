@@ -1,3 +1,43 @@
+// Static Results Panel Preview Overrides
+.results-panel.results-panel--static.is-active
+  .timeline-node--status-6 .node-icon .node-circle,
+  .timeline-node--order-final .node-icon .node-circle
+    width 58px
+    height 40px
+    border-radius 5px
+    overflow hidden
+    display flex
+    align-items center
+    justify-content center
+    border 0
+    &::before
+      content ''
+      position absolute
+      top 0
+      left -100%
+      width 100%
+      height 100%
+      background linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.8), transparent)
+      transform skewX(20deg)
+      animation orderCompletionShine 4s infinite ease-out
+      pointer-events none
+      z-index 1
+      border-radius 3px
+    &::after
+      content ''
+      position absolute
+      top 50%
+      left 50%
+      transform translate(-50%, -50%)
+      width 38px
+      height 18px
+      background-image url('../images/tailormed-mark.svg')
+      background-size contain
+      background-repeat no-repeat
+      background-position center
+      z-index 2
+      filter none
+      pointer-events none
           .separator
             font-size 1.1rem
             font-weight 700
@@ -531,7 +571,7 @@
            align-items center
            justify-content center
 
-           .node-circle
+          .node-circle:not(.node-circle--order-final)
              width 40px
              height 40px
              background primary-color
@@ -578,6 +618,44 @@
  
                &::after
                  filter brightness(0) invert(1)
+
+          .node-circle--order-final
+            width 58px
+            height 40px
+            border-radius 5px
+            overflow hidden
+            display flex
+            align-items center
+            justify-content center
+            border 0
+            &::before
+              content ''
+              position absolute
+              top 0
+              left -100%
+              width 100%
+              height 100%
+              background linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.8), transparent)
+              transform skewX(20deg)
+              animation orderCompletionShine 4s infinite ease-out
+              pointer-events none
+              z-index 1
+              border-radius 3px
+            &::after
+              content ''
+              position absolute
+              top 50%
+              left 50%
+              transform translate(-50%, -50%)
+              width 38px
+              height 18px
+              background-image url('../images/tailormed-mark.svg')
+              background-size contain
+              background-repeat no-repeat
+              background-position center
+              z-index 2
+              filter none
+              pointer-events none
  
          .node-info
            display flex
@@ -756,7 +834,7 @@
                top 50%
                left 50%
                transform translate(-50%, -50%)
-               width 38px
+               width 58px
                height 18px
                background-image url('../images/tailormed-mark.svg')
                background-size contain
@@ -960,7 +1038,7 @@
               align-items center
               flex-shrink 0
               
-              .node-circle
+              .node-circle:not(.node-circle--order-final)
                 width 38px
                 height 38px
                 
@@ -1038,6 +1116,63 @@
           .timeline-node--status-6 .node-circle
             width 58px
             height 40px
+
+        .timeline-node .node-icon .node-circle--order-final
+          width 58px
+          height 40px
+          border-radius 5px
+          overflow hidden
+          display flex
+          align-items center
+          justify-content center
+          border 0
+          &::before
+            content ''
+            position absolute
+            top 0
+            left -100%
+            width 100%
+            height 100%
+            background linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.8), transparent)
+            transform skewX(20deg)
+            animation orderCompletionShine 4s infinite ease-out
+            pointer-events none
+            z-index 1
+            border-radius 3px
+          &::after
+            content ''
+            position absolute
+            top 50%
+            left 50%
+            transform translate(-50%, -50%)
+            width 38px
+            height 18px
+            background-image url('../images/tailormed-mark.svg')
+            background-size contain
+            background-repeat no-repeat
+            background-position center
+            z-index 2
+            filter none
+            pointer-events none
+            border-radius 5px
+            overflow hidden
+            display flex
+            align-items center
+            justify-content center
+            border 0
+            &::before
+              content ''
+              position absolute
+              top 0
+              left -100%
+              width 100%
+              height 100%
+              background linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.8), transparent)
+              transform skewX(20deg)
+              animation orderCompletionShine 4s infinite ease-out
+              pointer-events none
+              z-index 1
+              border-radius 3px
             
             &::after
               width 38px
