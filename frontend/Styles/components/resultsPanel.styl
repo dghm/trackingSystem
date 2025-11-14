@@ -1,43 +1,44 @@
 // Static Results Panel Preview Overrides
 .results-panel.results-panel--static.is-active
-  .timeline-node--status-6 .node-icon .node-circle,
-  .timeline-node--order-final .node-icon .node-circle
-    width 58px
-    height 40px
-    border-radius 5px
-    overflow hidden
-    display flex
-    align-items center
-    justify-content center
-    border 0
-    &::before
-      content ''
-      position absolute
-      top 0
-      left -100%
-      width 100%
-      height 100%
-      background linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.8), transparent)
-      transform skewX(20deg)
-      animation orderCompletionShine 4s infinite ease-out
-      pointer-events none
-      z-index 1
-      border-radius 3px
-    &::after
-      content ''
-      position absolute
-      top 50%
-      left 50%
-      transform translate(-50%, -50%)
-      width 38px
-      height 18px
-      background-image url('../images/tailormed-mark.svg')
-      background-size contain
-      background-repeat no-repeat
-      background-position center
-      z-index 2
-      filter none
-      pointer-events none
+  .timeline-content .timeline-nodes-container
+    .timeline-node--status-6 .node-icon .node-circle,
+    .timeline-node--order-final .node-icon .node-circle
+      width 58px
+      height 40px
+      border-radius 5px
+      overflow hidden
+      display flex
+      align-items center
+      justify-content center
+      border 0
+      &::before
+        content ''
+        position absolute
+        top 0
+        left -100%
+        width 100%
+        height 100%
+        background linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.8), transparent)
+        transform skewX(20deg)
+        animation orderCompletionShine 4s infinite ease-out
+        pointer-events none
+        z-index 1
+        border-radius 3px
+      &::after
+        content ''
+        position absolute
+        top 50%
+        left 50%
+        transform translate(-50%, -50%)
+        width 38px
+        height 18px
+        background-image url('../images/tailormed-mark.svg')
+        background-size contain
+        background-repeat no-repeat
+        background-position center
+        z-index 2
+        filter none
+        pointer-events none
           .separator
             font-size 1.1rem
             font-weight 700
@@ -571,7 +572,7 @@
            align-items center
            justify-content center
 
-          .node-circle:not(.node-circle--order-final)
+           .node-circle
              width 40px
              height 40px
              background primary-color
@@ -867,11 +868,11 @@
   align-items center
   gap 0
   top var(--dryice-event1-top, 39%)
-  left var(--dryice-event1-left, 52%)
+  left var(--dryice-event1-left, 52.5%)
   
   &:nth-child(2)
     top 39%
-    left 66%
+    left 67%
   
   .event-circle
     position relative
@@ -1205,8 +1206,8 @@
       left 20%
     
     &:nth-child(2)
-      top 70.5%
-      left 20%
+            top 70.5%
+            left 67%
     
     .event-circle
       transform none
@@ -1324,10 +1325,10 @@
   .results-panel
     padding 28px 24px
   .event-dryice-refilled[data-step='4']
-    top 54.5%
+    top 55.5%
     left 20%
   .event-dryice-refilled[data-step='5']
-    top 70%
+    top 70.5%
     left 20%
 // Mobile Extra Styles
 

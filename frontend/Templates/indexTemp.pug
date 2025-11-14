@@ -73,7 +73,261 @@ html(lang="zh-TW")
           .timeline-content
             h3.timeline-title Shipment History
             p.timeline-description Track your shipment through each milestone
-            .timeline-previews-gallery
+            h4.timeline-preview-item__title(style="color: var(--prColor);") International｜In Progress
+            .timeline-visual.timeline-visual--imex.timeline-visual--static-demo(style="--timeline-progress-width: 85%; --timeline-progress-height: 78%")
+              .timeline-track
+              .timeline-connector
+              .timeline-nodes-container
+                .timeline-node.timeline-node--status-1.timeline-node--executed(data-status-code="1", data-step="1")
+                  .node-date(data-month="Nov", data-day="05")
+                    span.month Nov
+                    span.separator 
+                    span.day 05
+                  .node-icon
+                    .node-circle
+                  .node-info
+                    .node-status Order Created
+                    p.node-time 07:50
+                .timeline-node.timeline-node--status-1.timeline-node--executed(data-status-code="1", data-step="2")
+                  .node-date(data-month="Nov", data-day="05")
+                    span.month Nov
+                    span.separator 
+                    span.day 05
+                  .node-icon
+                    .node-circle
+                  .node-info
+                    .node-status Shipment Collected
+                    p.node-time 10:25
+                .timeline-node.timeline-node--status-1.timeline-node--executed(data-status-code="1", data-step="3")
+                  .node-date(data-month="Nov", data-day="05")
+                    span.month Nov
+                    span.separator 
+                    span.day 05
+                  .node-icon
+                    .node-circle
+                  .node-info
+                    .node-status Origin Customs Process
+                    p.node-time 12:05
+                .timeline-node.timeline-node--status-1.timeline-node--executed(data-status-code="1", data-step="4")
+                  .node-date(data-month="Nov", data-day="05")
+                    span.month Nov
+                    span.separator 
+                    span.day 05
+                  .node-icon
+                    .node-circle
+                  .node-info
+                    .node-status In Transit
+                    p.node-time 16:40
+                .timeline-node.timeline-node--status-1.timeline-node--executed(data-status-code="1", data-step="5")
+                  .node-date(data-month="Nov", data-day="06")
+                    span.month Nov
+                    span.separator 
+                    span.day 06
+                  .node-icon
+                    .node-circle
+                  .node-info
+                    .node-status Destination Customs Process
+                    p.node-time 08:10
+                .timeline-node.timeline-node--status-2.timeline-node--processing(data-status-code="2", data-step="6")
+                  .node-date(data-month="TBD", data-day="")
+                    span.month TBD
+                    span.separator 
+                    span.day
+                  .node-icon
+                    .node-circle
+                  .node-info
+                    .node-status Out for Delivery
+                    p.node-time Processing...
+                .timeline-node.timeline-node--status-4.timeline-node--scheduled(data-status-code="4", data-step="7")
+                  .node-date(data-month="TBD", data-day="")
+                    span.month TBD
+                    span.separator 
+                    span.day
+                  .node-icon
+                    .node-circle
+                  .node-info
+                    .node-status Shipment Delivered
+                    p.node-time --:--
+              .timeline-events
+                .event-dryice-refilled(data-step="4")
+                  .event-circle
+                  .event-tag
+                    span.event-tag-text Dry Ice Refilled<br/>(Terminal)
+                    img.event-tag-icon(src="./images/icon-dryice.svg", alt="Dry Ice Refilled (Terminal)")
+                .event-dryice-refilled(data-step="5")
+                  .event-circle
+                  .event-tag
+                    span.event-tag-text Dry Ice Refilled
+                    img.event-tag-icon(src="./images/icon-dryice.svg", alt="Dry Ice Refilled")
+            h4.timeline-preview-item__title(style="color: var(--prColor); margin-top: 32px;") International｜Shipment Delivered
+            .timeline-visual.timeline-visual--imex.timeline-visual--static-demo.timeline-visual--order-final(style="--timeline-progress-width: 100%; --timeline-progress-height: 88%;")
+              .timeline-track
+              .timeline-connector
+              .timeline-nodes-container
+                .timeline-node.timeline-node--status-5.timeline-node--order-completed(data-status-code="5", data-step="1")
+                  .node-date(data-month="Nov", data-day="05")
+                    span.month Nov
+                    span.separator 
+                    span.day 05
+                  .node-icon
+                    .node-circle
+                  .node-info
+                    .node-status Order Created
+                    p.node-time 07:50
+                .timeline-node.timeline-node--status-5.timeline-node--order-completed(data-status-code="5", data-step="2")
+                  .node-date(data-month="Nov", data-day="05")
+                    span.month Nov
+                    span.separator 
+                    span.day 05
+                  .node-icon
+                    .node-circle
+                  .node-info
+                    .node-status Shipment Collected
+                    p.node-time 10:25
+                .timeline-node.timeline-node--status-5.timeline-node--order-completed(data-status-code="5", data-step="3")
+                  .node-date(data-month="Nov", data-day="05")
+                    span.month Nov
+                    span.separator 
+                    span.day 05
+                  .node-icon
+                    .node-circle
+                  .node-info
+                    .node-status Origin Customs Process
+                    p.node-time 12:05
+                .timeline-node.timeline-node--status-5.timeline-node--order-completed(data-status-code="5", data-step="4")
+                  .node-date(data-month="Nov", data-day="05")
+                    span.month Nov
+                    span.separator 
+                    span.day 05
+                  .node-icon
+                    .node-circle
+                  .node-info
+                    .node-status In Transit
+                    p.node-time 16:40
+                .timeline-node.timeline-node--status-5.timeline-node--order-completed(data-status-code="5", data-step="5")
+                  .node-date(data-month="Nov", data-day="06")
+                    span.month Nov
+                    span.separator 
+                    span.day 06
+                  .node-icon
+                    .node-circle
+                  .node-info
+                    .node-status Destination Customs Process
+                    p.node-time 08:10
+                .timeline-node.timeline-node--status-5.timeline-node--order-completed(data-status-code="5", data-step="6")
+                  .node-date(data-month="Nov", data-day="06")
+                    span.month Nov
+                    span.separator 
+                    span.day 06
+                  .node-icon
+                    .node-circle
+                  .node-info
+                    .node-status Out for Delivery
+                    p.node-time 12:45
+                .timeline-node.timeline-node--status-6.timeline-node--order-final(data-status-code="6", data-step="7")
+                  .node-date(data-month="Nov", data-day="07")
+                    span.month Nov
+                    span.separator 
+                    span.day 07
+                  .node-icon
+                    .node-circle.node-circle--order-final
+                  .node-info
+                    .node-status Shipment Delivered
+                    p.node-time 18:15
+              .timeline-events
+            h4.timeline-preview-item__title(style="color: var(--prColor); margin-top: 32px;") Domestic｜In Progress
+            .timeline-visual.timeline-visual--domestic.timeline-visual--static-demo(style="--timeline-progress-width: 40%; --timeline-progress-height: 42%;")
+              .timeline-track
+              .timeline-connector
+              .timeline-nodes-container
+                .timeline-node.timeline-node--status-1.timeline-node--executed(data-status-code="1", data-step="1")
+                  .node-date(data-month="Nov", data-day="05")
+                    span.month Nov
+                    span.separator 
+                    span.day 05
+                  .node-icon
+                    .node-circle
+                  .node-info
+                    .node-status Order Created
+                    p.node-time 09:15
+                .timeline-node.timeline-node--status-2.timeline-node--processing(data-status-code="2", data-step="2")
+                  .node-date(data-month="Nov", data-day="05")
+                    span.month Nov
+                    span.separator 
+                    span.day 05
+                  .node-icon
+                    .node-circle
+                  .node-info
+                    .node-status Shipment Collected
+                    p.node-time Processing...
+                .timeline-node.timeline-node--status-4.timeline-node--scheduled(data-status-code="4", data-step="3")
+                  .node-date(data-month="TBD", data-day="")
+                    span.month TBD
+                    span.separator 
+                    span.day
+                  .node-icon
+                    .node-circle
+                  .node-info
+                    .node-status Out for Delivery
+                    p.node-time --:--
+                .timeline-node.timeline-node--status-4.timeline-node--scheduled(data-status-code="4", data-step="4")
+                  .node-date(data-month="TBD", data-day="")
+                    span.month TBD
+                    span.separator 
+                    span.day
+                  .node-icon
+                    .node-circle
+                  .node-info
+                    .node-status Shipment Delivered
+                    p.node-time --:--
+              .timeline-events
+            h4.timeline-preview-item__title(style="color: var(--prColor); margin-top: 32px;") Domestic｜Shipment Delivered
+            .timeline-visual.timeline-visual--domestic.timeline-visual--static-demo.timeline-visual--order-final(style="--timeline-progress-width: 100%; --timeline-progress-height: 88%;")
+              .timeline-track
+              .timeline-connector
+              .timeline-nodes-container
+                .timeline-node.timeline-node--status-5.timeline-node--order-completed(data-status-code="5", data-step="1")
+                  .node-date(data-month="Nov", data-day="05")
+                    span.month Nov
+                    span.separator 
+                    span.day 05
+                  .node-icon
+                    .node-circle
+                  .node-info
+                    .node-status Order Created
+                    p.node-time 09:30
+                .timeline-node.timeline-node--status-5.timeline-node--order-completed(data-status-code="5", data-step="2")
+                  .node-date(data-month="Nov", data-day="06")
+                    span.month Nov
+                    span.separator 
+                    span.day 06
+                  .node-icon
+                    .node-circle
+                  .node-info
+                    .node-status Shipment Collected
+                    p.node-time 11:00
+                .timeline-node.timeline-node--status-5.timeline-node--order-completed(data-status-code="5", data-step="3")
+                  .node-date(data-month="Nov", data-day="07")
+                    span.month Nov
+                    span.separator 
+                    span.day 07
+                  .node-icon
+                    .node-circle
+                  .node-info
+                    .node-status Out for Delivery
+                    p.node-time --:--
+                .timeline-node.timeline-node--status-6.timeline-node--order-final(data-status-code="6", data-step="4")
+                  .node-date(data-month="Nov", data-day="08")
+                    span.month Nov
+                    span.separator 
+                    span.day 08
+                  .node-icon
+                    .node-circle.node-circle--order-final
+                  .node-info
+                    .node-status Shipment Delivered
+                    p.node-time 15:45
+              .timeline-events
+            //- .timeline-previews-gallery
               .timeline-preview-item.timeline-preview-item--international
                 h4.timeline-preview-item__title International｜In Progress
                 include components/timeline/internationalInProgress.pug
