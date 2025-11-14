@@ -522,6 +522,11 @@
     return Boolean(value);
   }
 
+  function normalizeEventTitle(value) {
+    if (!value || typeof value !== 'string') return '';
+    return value.replace(/\s+/g, ' ').trim().toLowerCase();
+  }
+
   function evaluateDryIceEvents(shipmentData, processedSteps) {
     const rawFields = shipmentData?._raw || {};
     const timeline = Array.isArray(shipmentData?.timeline)
@@ -537,18 +542,28 @@
       transportType.includes('imex');
 
     const events = timeline.filter((item) => item.isEvent);
+    const enhancedEvents = events.map((eventItem) => {
+      const normalizedTitle = normalizeEventTitle(eventItem.title);
+      let eventType = eventItem.eventType || null;
+      if (normalizedTitle === 'dry ice refilled(terminal)') {
+        eventType = 'dryice-terminal';
+      } else if (normalizedTitle === 'dry ice refilled') {
+        eventType = 'dryice-standard';
+      }
+      return {
+        ...eventItem,
+        eventType,
+      };
+    });
 
     if (!isInternational) {
       return {
         shouldShowEventOne: false,
         shouldShowEventTwo: false,
-        filteredEvents: events,
-        hasAnyEvent: events.length > 0,
+        filteredEvents: enhancedEvents,
+        hasAnyEvent: enhancedEvents.length > 0,
       };
     }
-
-    const normalizeTitle = (value) =>
-      (value || '').toString().replace(/\s+/g, ' ').trim().toLowerCase();
 
     const stepsSource = processedSteps
       ? processedSteps.map((step) => ({
@@ -563,17 +578,10 @@
             letter: mapStatusStringToLetter(item.status || ''),
           }));
 
-    const statusLetters = stepsSource.map((item) => item.letter);
-
-    const matchesInternationalPattern =
-      statusLetters.length >= 7 &&
-      statusLetters.slice(0, 5).every((letter) => letter === 'a') &&
-      statusLetters.slice(5, 7).every((letter) => letter === 'd');
-
     const getLetterByTitle = (title) => {
-      const normalized = normalizeTitle(title);
+      const normalized = normalizeEventTitle(title);
       const found = stepsSource.find(
-        (item) => normalizeTitle(item.title) === normalized
+        (item) => normalizeEventTitle(item.title) === normalized
       );
       return found ? found.letter : null;
     };
@@ -593,18 +601,18 @@
     const dryIceChecked = getCheckboxValue('Dry Ice Refilled');
 
     const shouldShowEventOne =
-      matchesInternationalPattern && terminalChecked && inTransitLetter === 'a';
+      terminalChecked && inTransitLetter && inTransitLetter === 'a';
 
     const shouldShowEventTwo =
-      matchesInternationalPattern && dryIceChecked && destCustomsLetter === 'a';
+      dryIceChecked && destCustomsLetter && destCustomsLetter === 'a';
 
-    const filteredEvents = events.filter((eventItem) => {
-      const titleNormalized = normalizeTitle(eventItem.title);
+    const filteredEvents = enhancedEvents.filter((eventItem) => {
+      const titleNormalized = normalizeEventTitle(eventItem.title);
       if (titleNormalized === 'dry ice refilled(terminal)') {
-        return shouldShowEventOne;
+        return shouldShowEventOne || inTransitLetter === 'a';
       }
       if (titleNormalized === 'dry ice refilled') {
-        return shouldShowEventTwo;
+        return shouldShowEventTwo || destCustomsLetter === 'a';
       }
       return true;
     });
@@ -801,10 +809,13 @@
       const isProcessingStatus =
         statusCode === TIMELINE_STATUS_CODES.PROCESSING ||
         statusCode === TIMELINE_STATUS_CODES.INTERNATIONAL_IN_TRANSIT;
+      const isScheduledStatus =
+        statusCode === TIMELINE_STATUS_CODES.SCHEDULED;
 
-      const displayDate = isProcessingStatus ? '' : step.date;
-      const displayMonth = isProcessingStatus ? 'TBD' : undefined;
-      const displayDay = isProcessingStatus ? '' : undefined;
+      const shouldShowTbdDate = isProcessingStatus || isScheduledStatus;
+      const displayDate = shouldShowTbdDate ? '' : step.date;
+      const displayMonth = shouldShowTbdDate ? 'TBD' : undefined;
+      const displayDay = shouldShowTbdDate ? '' : undefined;
       let displayTime = step.time;
 
       if (
@@ -830,6 +841,14 @@
 
     const eventVisibility = evaluateDryIceEvents(shipmentData, processedSteps);
     const filteredEventItems = eventVisibility.filteredEvents;
+    const dryIceEvents = filteredEventItems.filter((eventItem) => {
+      const normalizedTitle = normalizeEventTitle(eventItem?.title);
+      return (
+        (eventItem?.eventType && eventItem.eventType.startsWith('dryice')) ||
+        normalizedTitle === 'dry ice refilled' ||
+        normalizedTitle === 'dry ice refilled(terminal)'
+      );
+    });
 
     // 計算進度百分比
     const progressBar = document.querySelector('.timeline-progress');
@@ -873,7 +892,10 @@
       let connectorWidthPercent = 0;
       let mobileTrackHeightPercent = 0;
 
-      if (isDomestic && processedSteps.length === 4) {
+      if (isOrderCompleted) {
+        connectorWidthPercent = 100;
+        mobileTrackHeightPercent = 100;
+      } else if (isDomestic && processedSteps.length === 4) {
         const domesticPreset = [0, 40, 70, 99];
         const domesticMobilePreset = [13, 38, 66, 88];
         const executedStatusCodes = new Set([
@@ -1008,20 +1030,83 @@
       });
     }
 
+    // 渲染 Dry Ice Events
+    let timelineEvents =
+      timelineVisual?.querySelector('.timeline-events') ||
+      resultsPanel?.querySelector('.timeline-events');
+    if (!timelineEvents && timelineVisual) {
+      timelineEvents = document.createElement('div');
+      timelineEvents.className = 'timeline-events';
+      timelineVisual.appendChild(timelineEvents);
+    }
+    if (timelineEvents) {
+      timelineEvents.innerHTML = '';
+      if (dryIceEvents.length > 0) {
+        timelineEvents.classList.remove('is-hidden');
+        dryIceEvents.forEach((eventItem) => {
+          const eventElement = document.createElement('div');
+          eventElement.className = 'event-dryice-refilled';
+          if (eventItem.eventType) {
+            eventElement.dataset.eventType = eventItem.eventType;
+          }
+          if (eventItem.eventType === 'dryice-terminal') {
+            eventElement.dataset.step = '4';
+          } else if (eventItem.eventType === 'dryice-standard') {
+            eventElement.dataset.step = '5';
+          } else if (eventItem.step !== undefined && eventItem.step !== null) {
+            eventElement.dataset.step = String(eventItem.step);
+          }
+
+          const eventCircle = document.createElement('div');
+          eventCircle.className = 'event-circle';
+
+          const eventTag = document.createElement('div');
+          eventTag.className = 'event-tag';
+
+          const eventTagText = document.createElement('span');
+          eventTagText.className = 'event-tag-text';
+          if (eventItem.eventType === 'dryice-terminal') {
+            eventTagText.innerHTML = 'Dry Ice Refilled<br/>(Terminal)';
+          } else if (eventItem.eventType === 'dryice-standard') {
+            eventTagText.textContent = 'Dry Ice Refilled';
+          } else {
+            eventTagText.textContent = eventItem.title || '';
+          }
+
+          const eventTagIcon = document.createElement('img');
+          eventTagIcon.className = 'event-tag-icon';
+          eventTagIcon.src = 'images/icon-dryice.svg';
+          eventTagIcon.alt = eventItem.title || 'Dry Ice Refilled';
+
+          eventTag.append(eventTagText, eventTagIcon);
+          eventElement.append(eventCircle, eventTag);
+          timelineEvents.appendChild(eventElement);
+        });
+      } else {
+        timelineEvents.classList.add('is-hidden');
+      }
+    }
+
     // 如果有 Dry Ice Event，添加時間軸圖示
-    const dryIceEvent = filteredEventItems.find(
-      (item) => item.eventType === 'dryice'
-    );
+    const hasDryIceEvent = dryIceEvents.length > 0;
+    const primaryDryIceEvent = dryIceEvents[0];
     if (timelineVisual) {
       const existingIcon = timelineVisual.querySelector('.timeline-event-icon');
-      if (!dryIceEvent && existingIcon) {
+      if (!hasDryIceEvent && existingIcon) {
         existingIcon.remove();
-      } else if (dryIceEvent && !existingIcon) {
+      } else if (hasDryIceEvent && !existingIcon) {
         const icon = document.createElement('div');
         icon.className = 'timeline-event-icon';
         icon.innerHTML =
-          '<img src="images/icon-dryice.svg" alt="Dry Ice Refilled">';
+          `<img src="images/icon-dryice.svg" alt="${
+            primaryDryIceEvent?.title || 'Dry Ice Refilled'
+          }">`;
         timelineVisual.appendChild(icon);
+      } else if (hasDryIceEvent && existingIcon) {
+        const imgEl = existingIcon.querySelector('img');
+        if (imgEl) {
+          imgEl.alt = primaryDryIceEvent?.title || 'Dry Ice Refilled';
+        }
       }
     }
 
@@ -1029,7 +1114,7 @@
       '.status-icon-wrapper'
     );
     if (statusIconWrapper) {
-      if (dryIceEvent) {
+      if (hasDryIceEvent) {
         statusIconWrapper.style.display = '';
       } else {
         statusIconWrapper.remove();
