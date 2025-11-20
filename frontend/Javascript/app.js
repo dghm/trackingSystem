@@ -148,7 +148,9 @@
   function clearResultsMessage() {
     if (!resultsPanel) return;
 
-    resultsPanel.classList.remove('is-loading', 'is-error');
+    // 先移除 is-empty class，這樣 timeline-content 才會顯示
+    resultsPanel.classList.remove('is-empty', 'is-hidden', 'is-loading', 'is-error');
+    
     const messageBox = resultsPanel.querySelector('.results-message');
     const container = resultsPanel.querySelector('.results-container');
     const timelineContent = resultsPanel.querySelector('.timeline-content');
@@ -164,8 +166,11 @@
       container.style.display = '';
     }
 
+    // 確保 timeline-content 顯示
     if (timelineContent) {
       timelineContent.style.display = '';
+      // 強制顯示，覆蓋 CSS 的 display: none
+      timelineContent.style.setProperty('display', 'flex', 'important');
     }
 
     if (description) {
@@ -175,8 +180,6 @@
     if (resultsNote) {
       resultsNote.style.display = '';
     }
-
-    resultsPanel.classList.remove('is-empty', 'is-hidden');
   }
 
   function updateApiDebugPanel(data) {
@@ -205,9 +208,10 @@
     });
   }
 
-  // 狀態訊息
+  // 狀態訊息（從配置檔讀取，如果沒有則使用預設值）
+  const content = window.CONFIG?.content || {};
   const STATUS_MESSAGES = {
-    loading: 'Retrieving your shipment status. Just a moment...',
+    loading: content.results?.loadingText || 'Retrieving your shipment status. Just a moment...',
     notFound:
       "We couldn't find any shipment that matches the information provided.\n\nPlease double-check your Job No. and Tracking No. and try again.",
     error: '服務暫時無法使用，稍候再試或聯絡客服人員。',
@@ -346,16 +350,17 @@
         timeoutId = setTimeout(() => controller.abort(), MAX_QUERY_TIME);
       }
 
-      // 使用 POST 方法呼叫 API（Netlify Functions 支援 POST）
-      const response = await fetch(`${API_BASE_URL}/tracking`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          orderNo: orderNo,
-          trackingNo: trackingNo,
-        }),
+      // 檢測環境：如果是 localhost 使用本地 API 服務器，否則使用 Netlify Function
+      const isLocalhost = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
+      const apiBaseUrl = isLocalhost ? 'http://localhost:3001/api' : '/api';
+      
+      // 使用 GET 方法呼叫 API（與 Standard/Basic 保持一致）
+      const apiUrl = `${apiBaseUrl}/tracking?orderNo=${encodeURIComponent(orderNo)}&trackingNo=${encodeURIComponent(trackingNo)}`;
+      
+      console.log('🔍 API URL:', apiUrl);
+      
+      const response = await fetch(apiUrl, {
+        method: 'GET',
         signal: controller?.signal,
       });
 
@@ -385,11 +390,18 @@
             responseTime: Date.now() - startTime,
           });
           // 查詢次數超過限制
-          const errorData = await response.json();
-          return {
-            error: 'rate_limit',
-            message: errorData.message || '查詢次數已達上限，請稍後再試。',
-          };
+          try {
+            const errorData = await response.json();
+            return {
+              error: 'rate_limit',
+              message: errorData.message || '查詢次數已達上限，請稍後再試。',
+            };
+          } catch (e) {
+            return {
+              error: 'rate_limit',
+              message: '查詢次數已達上限，請稍後再試。',
+            };
+          }
         }
         throw new Error('Network response was not ok');
       }
@@ -435,6 +447,25 @@
     }
   }
 
+  // 轉換步驟名稱的函數（全局函數，供 renderShipmentInfo 和 renderTimeline 使用）
+  function translateStepName(originalTitle) {
+    if (!originalTitle) return '';
+    const stepNameMapping = content.results?.stepNameMapping || {};
+    // 先嘗試完全匹配
+    if (stepNameMapping[originalTitle]) {
+      return stepNameMapping[originalTitle];
+    }
+    // 嘗試不區分大小寫匹配
+    const lowerOriginal = originalTitle.toLowerCase().trim();
+    for (const [key, value] of Object.entries(stepNameMapping)) {
+      if (key.toLowerCase().trim() === lowerOriginal) {
+        return value;
+      }
+    }
+    // 如果沒有匹配，返回原始名稱
+    return originalTitle;
+  }
+
   // 渲染貨件資訊
   function renderShipmentInfo(shipmentData) {
     if (!shipmentData) return;
@@ -448,8 +479,9 @@
       .reverse()
       .find((item) => item && !item.isEvent && (item.time || item.date));
 
-    const statusText =
-      latestTimelineEntry?.title || shipmentData.status || 'Processing';
+    const statusText = translateStepName(
+      latestTimelineEntry?.title || shipmentData.status || 'Processing'
+    );
     const timelineDate = latestTimelineEntry?.date || '';
     const timelineTime = latestTimelineEntry?.time || '';
     const combinedTimelineDateTime = [timelineDate, timelineTime]
@@ -467,9 +499,20 @@
     const etaFormatted = formatDateToDDMMYYYY(shipmentData.eta);
 
     // 更新基本資訊
+    // 從配置檔讀取欄位標籤（使用已聲明的 content 變數）
+    const resultsLabels = content.results?.fieldLabels || {};
+    const defaultLabels = {
+      jobNo: 'Job No.',
+      trackingNo: 'Tracking No.',
+      invoiceNo: 'Invoice No.',
+      eta: 'ETA',
+      status: 'Status',
+      lastUpdate: 'Last Update',
+    };
+    
     const summaryFields = {
-      'Job No.': shipmentData.orderNo || '—',
-      'Original/Destination': (() => {
+      [resultsLabels.jobNo || defaultLabels.jobNo]: shipmentData.orderNo || '—',
+      [resultsLabels.originalDestination || 'Original/Destination']: (() => {
         if (
           shipmentData.originDestination &&
           shipmentData.originDestination.trim()
@@ -483,9 +526,9 @@
       })(),
       Origin: 'hidden',
       Destination: 'hidden',
-      'Package Count': shipmentData.packageCount || '—',
-      Weight: shipmentData.weight ? `${shipmentData.weight} KG` : '—',
-      ETA: etaFormatted || '—',
+      [resultsLabels.packageCount || 'Package Count']: shipmentData.packageCount || '—',
+      [resultsLabels.weight || 'Weight']: shipmentData.weight ? `${shipmentData.weight} KG` : '—',
+      [resultsLabels.eta || defaultLabels.eta]: etaFormatted || '—',
     };
 
     // 更新 summary grid
@@ -514,11 +557,11 @@
 
       statusInfo.innerHTML = `
       <div class="summary-field">
-        <span class="field-label">Tracking No.</span>
+        <span class="field-label">${resultsLabels.trackingNo || defaultLabels.trackingNo}</span>
         <span class="field-value">${shipmentData.trackingNo}</span>
       </div>
       <div class="summary-field status-field">
-        <span class="field-label">Status</span>
+        <span class="field-label">${resultsLabels.status || defaultLabels.status}</span>
         <div class="status-value-wrapper">
           <span class="field-value status-inline status-in-transit">${statusText}</span>
           ${
@@ -533,7 +576,7 @@
         </div>
       </div>
       <div class="summary-field">
-        <span class="field-label">Last Update</span>
+        <span class="field-label">${resultsLabels.lastUpdate || defaultLabels.lastUpdate}</span>
         <span class="field-value">${lastUpdateText}</span>
       </div>
     `;
@@ -915,7 +958,7 @@
         statusCode === TIMELINE_STATUS_CODES.PROCESSING ||
         statusCode === TIMELINE_STATUS_CODES.INTERNATIONAL_IN_TRANSIT
       ) {
-        displayTime = 'Processing...';
+        displayTime = content.results?.processingText || 'Processing...';
       } else if (statusCode === TIMELINE_STATUS_CODES.SCHEDULED) {
         displayTime = '--:--';
       }
@@ -962,6 +1005,7 @@
     }
 
     const timelineVisual = resultsPanel?.querySelector('.timeline-visual');
+    console.log('🔍 timelineVisual:', timelineVisual);
     const timelineConnector = timelineVisual?.querySelector(
       '.timeline-connector'
     );
@@ -1095,6 +1139,7 @@
       timelineNodes = document.createElement('div');
       timelineNodes.className = 'timeline-nodes-container';
       timelineVisual.appendChild(timelineNodes);
+      console.log('✅ 已創建 timeline-nodes-container');
     } else if (
       timelineNodes &&
       !timelineNodes.classList.contains('timeline-nodes-container')
@@ -1103,6 +1148,7 @@
     }
 
     if (timelineNodes) {
+      console.log(`📊 準備渲染 ${processedSteps.length} 個 timeline nodes`);
       timelineNodes.innerHTML = '';
       processedSteps.forEach((item) => {
         const node = document.createElement('div');
@@ -1138,12 +1184,15 @@
           <div class="${nodeCircleClasses.join(' ')}"></div>
         </div>
         <div class="node-info">
-          <div class="node-status">${item.title || ''}</div>
+          <div class="node-status">${translateStepName(item.title) || ''}</div>
           <p class="node-time">${displayTime}</p>
         </div>
       `;
         timelineNodes.appendChild(node);
       });
+      console.log(`✅ 已渲染 ${processedSteps.length} 個 timeline nodes 到 timeline-nodes-container`);
+    } else {
+      console.warn('⚠️ 找不到 timeline-nodes-container 或 timeline-visual');
     }
 
     // 渲染 Dry Ice Events
@@ -1186,13 +1235,13 @@
           } else if (eventItem.eventType === 'dryice-standard') {
             eventTagText.textContent = 'Dry Ice Refilled';
           } else {
-            eventTagText.textContent = eventItem.title || '';
+            eventTagText.textContent = translateStepName(eventItem.title) || '';
           }
 
           const eventTagIcon = document.createElement('img');
           eventTagIcon.className = 'event-tag-icon';
           eventTagIcon.src = 'images/icon-dryice.svg';
-          eventTagIcon.alt = eventItem.title || 'Dry Ice Refilled';
+          eventTagIcon.alt = translateStepName(eventItem.title) || translateStepName('Dry Ice Refilled');
 
           eventTag.append(eventTagText, eventTagIcon);
           eventElement.append(eventCircle, eventTag);
@@ -1334,20 +1383,103 @@
   // 從 URL 參數初始化
   function initFromURL() {
     const params = new URLSearchParams(window.location.search);
-    const orderNo = params.get('order');
-    const trackingNo = params.get('tracking');
+    // 支援多種參數名稱：order/orderNo, tracking/trackingNo
+    const orderNo = params.get('orderNo') || params.get('order');
+    const trackingNo = params.get('trackingNo') || params.get('tracking');
 
-    if (orderInput && orderNo) {
-      orderInput.value = orderNo;
+    if (!orderNo || !trackingNo) {
+      // 只填充表單，不自動查詢
+      const orderInputEl = document.querySelector('#orderNo') || document.querySelector('input[name="order"]');
+      const jobInputEl = document.querySelector('#trackingNo') || document.querySelector('input[name="job"]');
+      
+      if (orderInputEl && orderNo) {
+        orderInputEl.value = orderNo;
+      }
+      if (jobInputEl && trackingNo) {
+        jobInputEl.value = trackingNo;
+      }
+      return;
     }
 
-    if (jobInput && trackingNo) {
-      jobInput.value = trackingNo;
+    // 如果兩個參數都存在，自動填充並執行查詢
+    const orderInputEl = document.querySelector('#orderNo') || document.querySelector('input[name="order"]');
+    const jobInputEl = document.querySelector('#trackingNo') || document.querySelector('input[name="job"]');
+    
+    if (orderInputEl) {
+      orderInputEl.value = orderNo;
     }
+    if (jobInputEl) {
+      jobInputEl.value = trackingNo;
+    }
+
+    // 自動執行查詢（使用延遲確保 DOM 和函數都已準備好）
+    setTimeout(() => {
+      handleAutoQuery(orderNo, trackingNo);
+    }, 1000); // 增加延遲時間確保所有元素都已準備好
+  }
+
+  // 自動查詢函數（當 URL 有參數時）
+  async function handleAutoQuery(orderNo, trackingNo) {
+    if (!orderNo || !trackingNo) return;
+
+    // 顯示載入狀態
+    showLoading();
+    scrollToResultsPanel();
+
+    // 執行查詢
+    const result = await fetchTrackingData(orderNo, trackingNo);
+
+    if (result === 'error') {
+      showError(STATUS_MESSAGES.error);
+      return;
+    }
+
+    if (result && result.error === 'rate_limit') {
+      showResultsMessage('error', result.message || STATUS_MESSAGES.error);
+      return;
+    }
+
+    if (result && result.error === 'timeout') {
+      showResultsMessage('error', result.message || STATUS_MESSAGES.timeout);
+      return;
+    }
+
+    if (!result) {
+      showResultsMessage('error', STATUS_MESSAGES.notFound);
+      return;
+    }
+
+    clearResultsMessage();
+
+    // 渲染資料
+    renderShipmentInfo(result);
+    renderTimeline(result);
+    updateApiDebugPanel(result);
+
+    // 更新 URL (不刷新頁面)
+    const url = new URL(window.location);
+    url.searchParams.set('order', orderNo);
+    url.searchParams.set('tracking', trackingNo);
+    window.history.pushState({}, '', url);
+
+    // 滾動到結果區域
+    scrollToResultsPanel();
   }
 
   // 初始化
   document.addEventListener('DOMContentLoaded', () => {
+    // 重新查找 DOM 元素（確保在 DOM 準備好後再查找）
+    const trackingFormElement =
+      document.querySelector('.summary-form') ||
+      document.querySelector('#trackingForm');
+    const orderInputElement =
+      document.querySelector('#orderNo') ||
+      document.querySelector('input[name="order"]');
+    const jobInputElement =
+      document.querySelector('#trackingNo') ||
+      document.querySelector('input[name="job"]');
+    const resultsPanelElement = document.querySelector('.results-panel');
+
     // 追蹤頁面載入
     trackUsage('page_load', {
       url: window.location.href,
@@ -1355,13 +1487,44 @@
       userAgent: navigator.userAgent,
     });
 
-    // 綁定表單提交事件
-    if (trackingForm) {
+    // 綁定表單提交事件（使用重新查找的元素）
+    if (trackingFormElement) {
+      trackingFormElement.addEventListener('submit', (event) => {
+        event.preventDefault();
+
+        // 使用重新查找的輸入元素
+        const orderNo = (orderInputElement || orderInput)?.value.trim().toUpperCase();
+        const trackingNo = (jobInputElement || jobInput)?.value.trim().toUpperCase();
+
+        if (!orderNo) {
+          (orderInputElement || orderInput)?.setCustomValidity('Please enter Job No.');
+          (orderInputElement || orderInput)?.reportValidity();
+          return;
+        }
+
+        if (!trackingNo) {
+          (jobInputElement || jobInput)?.setCustomValidity('Please enter Tracking No.');
+          (jobInputElement || jobInput)?.reportValidity();
+          return;
+        }
+
+        (orderInputElement || orderInput)?.setCustomValidity('');
+        (jobInputElement || jobInput)?.setCustomValidity('');
+
+        // 執行查詢
+        handleAutoQuery(orderNo, trackingNo);
+      });
+    } else if (trackingForm) {
+      // 如果重新查找失敗，使用原本找到的表單
       trackingForm.addEventListener('submit', handleFormSubmit);
+    } else {
+      console.warn('⚠️ 找不到表單元素，查貨功能可能無法使用');
     }
 
-    // 從 URL 初始化
-    initFromURL();
+    // 從 URL 初始化（延遲執行，確保所有元素都已準備好）
+    setTimeout(() => {
+      initFromURL();
+    }, 100);
 
     // 重新初始化互動效果（在動態內容載入後）
     window.addEventListener('contentLoaded', () => {

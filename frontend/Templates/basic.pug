@@ -1,9 +1,16 @@
+//- 使用配置變數（config 由 compile-multi-client.js 注入）
+- const brand = typeof config !== 'undefined' && config ? (config.brand || {}) : {}
+- const content = typeof config !== 'undefined' && config ? (config.content || {}) : {}
+- const colors = typeof config !== 'undefined' && config ? (config.colors || {}) : {}
+- const fieldLabels = content.fieldLabels || { orderNo: 'Job No.', trackingNo: 'Tracking No.' }
+
 doctype html
 html(lang="en")
   head
     meta(charset="UTF-8")
     meta(name="viewport", content="width=device-width, initial-scale=1.0")
-    title TailorMed Tracking System
+    title= (brand.name || '物流公司') + ' 貨件追蹤系統 - 基本'
+    script(src="./js/config.js")
     style.
       body {
         font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
@@ -215,18 +222,18 @@ html(lang="en")
       }
   body
     .container
-      img.logo(src="./images/logo.png", alt="TailorMed")
+      img.logo(src=brand.logo || "./images/logo.png", alt=brand.name || "Logo")
       
       form#trackingForm
         .form-group
-          label(for="orderNo") Job No.
-          input#orderNo(type="text", name="orderNo", placeholder="e.g., TM111682", required)
+          label(for="orderNo")= fieldLabels.orderNo || 'Job No.'
+          input#orderNo(type="text", name="orderNo", placeholder=content.orderNoPlaceholder || "e.g., TM111682", required)
         
         .form-group
-          label(for="trackingNo") Tracking No.
-          input#trackingNo(type="text", name="trackingNo", placeholder="e.g., GEXVC2YF", required)
+          label(for="trackingNo")= fieldLabels.trackingNo || 'Tracking No.'
+          input#trackingNo(type="text", name="trackingNo", placeholder=content.trackingNoPlaceholder || "e.g., GEXVC2YF", required)
         
-        button#submitBtn(type="submit") STATUS CHECK
+        button#submitBtn(type="submit")= content.submitButtonText || 'STATUS CHECK'
       
       #result.result
         #resultContent
@@ -251,7 +258,7 @@ html(lang="en")
         const trackingNo = document.getElementById('trackingNo').value.trim().toUpperCase();
         
         if (!orderNo || !trackingNo) {
-          showError('Please enter both Job No. and Tracking No.');
+          showError('Please enter both ' + '#{fieldLabels.orderNo || "Job No."}' + ' and ' + '#{fieldLabels.trackingNo || "Tracking No."}');
           return;
         }
         
@@ -259,7 +266,9 @@ html(lang="en")
       });
 
       async function fetchTrackingData(orderNo, trackingNo) {
-        showLoading('Checking shipment status, please wait...');
+        const content = window.CONFIG?.content || {};
+        const loadingText = content.results?.loadingText || 'Checking shipment status, please wait...';
+        showLoading(loadingText);
         
         try {
           // 檢測環境：如果是 localhost 使用本地 API 服務器，否則使用 Netlify Function
@@ -371,9 +380,44 @@ html(lang="en")
       function showSuccess(shipmentData) {
         result.className = 'result success';
         
+        // 從配置讀取文字
+        const content = window.CONFIG?.content || {};
+        const resultsLabels = content.results?.fieldLabels || {};
+        const resultsTexts = content.results || {};
+        const stepNameMapping = content.results?.stepNameMapping || {};
+        const defaultLabels = {
+          jobNo: 'Job No.',
+          trackingNo: 'Tracking No.',
+          invoiceNo: 'Invoice No.',
+          eta: 'ETA',
+          status: 'Status',
+          lastUpdate: 'Last Update',
+        };
+        const defaultTexts = {
+          successTitle: 'SUCCESS',
+          timelineTitle: 'TIMELINE',
+          processingText: 'Processing...',
+          pendingText: 'Pending...',
+        };
+        
+        // 轉換步驟名稱的函數
+        const translateStepName = (originalTitle) => {
+          if (!originalTitle) return '';
+          if (stepNameMapping[originalTitle]) {
+            return stepNameMapping[originalTitle];
+          }
+          const lowerOriginal = originalTitle.toLowerCase().trim();
+          for (const [key, value] of Object.entries(stepNameMapping)) {
+            if (key.toLowerCase().trim() === lowerOriginal) {
+              return value;
+            }
+          }
+          return originalTitle;
+        };
+        
         let timelineHtml = '';
         if (shipmentData.timeline && shipmentData.timeline.length > 0) {
-          timelineHtml = '<div class="timeline"><h3>TIMELINE</h3>';
+          timelineHtml = `<div class="timeline"><h3>${resultsTexts.timelineTitle || defaultTexts.timelineTitle}</h3>`;
           
           // Basic version 只顯示 4 個基本步驟（排除事件）
           // 按照用戶指定的順序：Order Created, Shipment Collected, In Transit, Shipment Delivered
@@ -448,8 +492,10 @@ html(lang="en")
             } else if (hasTime) {
               dateTimeDisplay = item.time;
             } else {
-              // 如果是處理中狀態，顯示 "Processing..."；否則顯示 "Pending..."
-              dateTimeDisplay = item.status === 'processing' ? 'Processing...' : 'Pending...';
+              // 如果是處理中狀態，顯示配置的文字；否則顯示 "Pending..."
+              dateTimeDisplay = item.status === 'processing' 
+                ? (resultsTexts.processingText || defaultTexts.processingText)
+                : (resultsTexts.pendingText || defaultTexts.pendingText);
             }
             
             // 檢查是否為訂單完成狀態
@@ -469,7 +515,7 @@ html(lang="en")
               <div class="timeline-item ${itemClass} ${stepClassForStatus}">
                 <div class="timeline-step ${stepColorClass}">${stepDisplay}</div>
                 <div class="timeline-content">
-                  <div class="timeline-title">${item.title}</div>
+                  <div class="timeline-title">${translateStepName(item.title)}</div>
                   <div class="timeline-time">${dateTimeDisplay}</div>
                 </div>
               </div>
@@ -486,38 +532,40 @@ html(lang="en")
             // 找到 processing 的前一個步驟（排除事件）
             for (let i = processingIndex - 1; i >= 0; i--) {
               if (!shipmentData.timeline[i].isEvent) {
-                statusDisplay = shipmentData.timeline[i].title;
+                statusDisplay = translateStepName(shipmentData.timeline[i].title);
                 break;
               }
             }
           }
+        } else {
+          statusDisplay = translateStepName(statusDisplay);
         }
         
         resultContent.innerHTML = `
-          <h3>SUCCESS</h3>
+          <h3>${resultsTexts.successTitle || defaultTexts.successTitle}</h3>
           <div class="shipment-info">
             <div class="info-row">
-              <span class="info-label">Job No.</span>
+              <span class="info-label">${resultsLabels.jobNo || defaultLabels.jobNo}</span>
               <span class="info-value">${shipmentData.orderNo || '—'}</span>
             </div>
             <div class="info-row">
-              <span class="info-label">Tracking No.</span>
+              <span class="info-label">${resultsLabels.trackingNo || defaultLabels.trackingNo}</span>
               <span class="info-value">${shipmentData.trackingNo || '—'}</span>
             </div>
             <div class="info-row">
-              <span class="info-label">Invoice No.</span>
+              <span class="info-label">${resultsLabels.invoiceNo || defaultLabels.invoiceNo}</span>
               <span class="info-value">${shipmentData.invoiceNo || '—'}</span>
             </div>
             <div class="info-row">
-              <span class="info-label">ETA</span>
+              <span class="info-label">${resultsLabels.eta || defaultLabels.eta}</span>
               <span class="info-value">${shipmentData.eta || '—'}</span>
             </div>
             <div class="info-row">
-              <span class="info-label">Status</span>
+              <span class="info-label">${resultsLabels.status || defaultLabels.status}</span>
               <span class="info-value">${statusDisplay}</span>
             </div>
             <div class="info-row">
-              <span class="info-label">Last Update</span>
+              <span class="info-label">${resultsLabels.lastUpdate || defaultLabels.lastUpdate}</span>
               <span class="info-value">${formatLastUpdate(shipmentData.lastUpdate)}</span>
             </div>
           </div>

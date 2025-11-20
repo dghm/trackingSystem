@@ -1,11 +1,11 @@
 # Netlify Configuration for TailorMed track
 
 [build]
-  # 建置命令 - 編譯 Pug 和 Stylus
-  command = "node compile.js"
+  # 建置命令 - 編譯 Pug 和 Stylus（編譯 client-b）
+  command = "CLIENT_ID=client-b node compile-multi-client.js"
   
   # 發布目錄（相對於 repository root）
-  publish = "dist"
+  publish = "dist/client-b"
   
   # Netlify Functions 目錄（相對於 repository root）
   functions = "backend/netlify/functions"

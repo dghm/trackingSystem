@@ -39,11 +39,6 @@
         z-index 2
         filter none
         pointer-events none
-          .separator
-            font-size 1.1rem
-            font-weight 700
-            color primary-color
-            white-space nowrap
 // Results Panel Component
 // 查詢結果面板組件
 
@@ -832,22 +827,31 @@
          .node-info .node-status
            color primary-color
  
-       .timeline-node--status-2,
-       .timeline-node--processing
-         .node-date
-           .month,
-           .day
-             color accent-color
-         .node-icon
-           .node-circle
-             background accent-color
-             &::before
-               background base-white
-             &::after
-               width 16px
-               height 13px
-               background-image url('../images/icon-truck.svg')
-               filter none
+      .timeline-node--status-2,
+      .timeline-node--processing
+        .node-date
+          .month,
+          .day
+            color accent-color
+        .node-icon
+          .node-circle
+            background accent-color
+            &::before
+              background base-white
+            &::after
+              width 16px
+              height 13px
+              background-color secondary-color
+              mask-image url('../images/icon-truck.svg')
+              mask-size contain
+              mask-repeat no-repeat
+              mask-position center
+              -webkit-mask-image url('../images/icon-truck.svg')
+              -webkit-mask-size contain
+              -webkit-mask-repeat no-repeat
+              -webkit-mask-position center
+              background-image none
+              filter none
              &:hover
                &::before
                  background accent-color
@@ -1017,11 +1021,11 @@
   flex-direction column
   align-items center
   gap 0
-  top var(--dryice-event1-top, 39%)
+  top var(--dryice-event1-top, 46%)
   left var(--dryice-event1-left, 52.5%)
   
   &:nth-child(2)
-    top 39%
+    top 46%
     left 67%
   
   .event-circle

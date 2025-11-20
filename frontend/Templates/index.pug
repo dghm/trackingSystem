@@ -1,39 +1,73 @@
+//- 使用配置變數（config 由 compile-multi-client.js 注入）
+- const brand = typeof config !== 'undefined' && config ? (config.brand || {}) : {}
+- const content = typeof config !== 'undefined' && config ? (config.content || {}) : {}
+- const fonts = typeof config !== 'undefined' && config ? (config.fonts || {}) : {}
+
 doctype html
 html(lang="zh-TW")
   head
     meta(charset="UTF-8")
     meta(name="viewport", content="width=device-width, initial-scale=1")
-    title TailorMed Tracking System is on the way.
+    title= content.pageTitle || '貨件追蹤系統'
+    link(rel="icon", type="image/svg+xml", href=brand.favicon || "./images/favicon.svg")
     link(rel="preconnect", href="https://fonts.googleapis.com")
     link(rel="preconnect", href="https://fonts.gstatic.com", crossorigin)
-    link(href="https://fonts.googleapis.com/css2?family=Inter:wght@800&family=Noto+Sans:wght@300;400;500;600;700&display=swap", rel="stylesheet")
-    link(rel="icon", type="image/svg+xml", href="./images/tailormed-mark.svg")
+    - const fontFamily = fonts.primary || 'Noto Sans'
+    - const encodedFont = encodeURIComponent(fontFamily)
+    - const fontUrl = 'https://fonts.googleapis.com/css2?family=' + encodedFont + ':wght@300;400;500;600;700&display=swap'
+    link(href=fontUrl, rel="stylesheet")
     link(rel="stylesheet", href="./css/main.css")
     script(src="./js/config.js")
     script(src="./js/app.js", defer)
   body
-    section.hero-banner--under-construction
-      .hero-overlay
+    header.site-header
       .container
-        .hero-panel
-          .hero-panel__left
-            .hero-brand
-              img.hero-logo(src="./images/logo.png", alt="TailorMed")
-            .hero-content
-              .hero-text
-                h1.hero-title
-                  span.hero-title__line.hero-title__line--under Tracking System
-                  span.hero-title__line.hero-title__line--construction is on the way.
-                p.hero-subtitle.hero-subtitle--desktop
-                  | We’re working hard to bring you a better way to monitor your shipments with precision and ease.
-                  br
-                  | The service will be available soon — thank you for your understanding and continued trust.
-                picture.hero-illustration
-                  source(srcset="./images/underConstruction.svg", media="(max-width: 768px)")
-                  img.hero-illustration__img(src="./images/underConstruction.svg", alt="TailorMed Tracking Illustration")
-                .hero-actions
-                  a.btn.btn--primary.btn--large(href="https://www.tailormed-intl.com") Back to TailorMed
-          .hero-panel__right
-        p.hero-panel__copyright Copyright © 2025 TailorMed All Rights Reserved.
+        .brand
+          img.brand-logo(src=brand.logo || "./images/logo.png", alt=brand.name || "Logo")
+          if brand.logoMobile
+            img.brand-logo.brand-logo--mobile(src=brand.logoMobile, alt=brand.name || "Logo")
+        if brand.website
+          a.header-btn(href=brand.website)= brand.backHomeText || 'Back Home'
 
-    // Footer removed per request
+    section.hero-banner
+      .hero-overlay
+        .container
+          .hero-content
+            .hero-text
+              h1.hero-title= content.heroTitle || 'Track Your Shipments'
+              p.hero-subtitle.hero-subtitle--desktop= content.heroSubtitle || 'Use your order number and tracking number to review the most recent shipment status.'
+              p.hero-subtitle.hero-subtitle--mobile= content.heroSubtitle || 'Use your order number and tracking number to review the most recent shipment status.'
+
+    section.hero-summary
+      //- 1. Shipment Tracking Lookup
+      include components/lookupPanel.pug
+
+      //- 2. Latest shipment updates（動態區塊）
+      include components/resultsPanel.pug
+
+      section.system-description
+        .container
+          .description-content
+            if content.descriptionTitle
+              h3.description-title= content.descriptionTitle
+            else
+              - const brandNameForTitle = brand.name || 'Tracking System'
+              h3.description-title #{brandNameForTitle} Shipment Tracking Notice
+              
+            .description-text-section
+              if content.descriptionText && Array.isArray(content.descriptionText) && content.descriptionText.length > 0
+                - const descriptionParagraphs = content.descriptionText
+                each paragraph in descriptionParagraphs
+                  p.description-text= paragraph
+              else
+                //- 預設文字（如果配置中沒有提供）
+                - const brandName = brand.name || 'us'
+                p.description-text
+                  | This tracking system is exclusively provided by #{brandName} for authorized clients to access current shipment information. Data is updated daily and accessible across multiple devices and platforms—no software installation required.
+                p.description-text
+                  | To protect the integrity and confidentiality of your shipment data, all queries are access-controlled and transmitted securely.
+    footer.site-footer
+      .container
+        - const currentYear = new Date().getFullYear()
+        - const footerBrand = brand.name || 'Tracking System'
+        p.site-footer__copy © #{currentYear} #{footerBrand}. All Rights Reserved.
