@@ -6,41 +6,45 @@ let dbConnection = null;
 let airtableConnection = null;
 
 // 載入環境變數的函數
+// 優先順序：
+// 1. 本地 .env 檔案（本地開發時優先使用）
+// 2. Netlify Dashboard 環境變數（生產環境或 netlify dev 同步的）
 function loadEnvVars() {
   const path = require('path');
   const fs = require('fs');
 
-  // 嘗試從多個位置載入 .env
-  // Netlify dev 會自動從 repository root 載入 .env，但我們也要支援 backend/.env
-  // 從 netlify/functions/tracking.js 到 repository root 需要上溯 6 層
+  // 先嘗試從 .env 檔案載入（本地開發優先）
+  // 優先順序：backend/.env > repository root/.env
+  // 注意：使用 override: true 確保 .env 的值會覆蓋 Netlify 同步的環境變數
   const envPaths = [
-    path.resolve(__dirname, '../../../../../../.env'), // repository root/.env (優先，Netlify dev 會自動載入)
-    path.resolve(__dirname, '../../.env'), // backend/.env (備用)
+    path.resolve(__dirname, '../../.env'), // backend/.env (優先，專案專屬設定)
+    path.resolve(__dirname, '../../../../../../.env'), // repository root/.env (最後)
   ];
 
+  let loadedFromFile = false;
   for (const envPath of envPaths) {
     if (fs.existsSync(envPath)) {
-      require('dotenv').config({ path: envPath });
-      console.log('✅ 已載入 .env 檔案:', envPath);
+      // 在載入 .env 前先清除 Netlify 的環境變數，確保完全覆蓋
+      delete process.env.AIRTABLE_BASE_ID;
+      delete process.env.AIRTABLE_API_KEY;
+      delete process.env.AIRTABLE_SHIPMENTS_TABLE;
+
+      // 使用 override: true 確保 .env 的值會覆蓋已存在的環境變數（包括 Netlify 同步的）
+      require('dotenv').config({ path: envPath, override: true });
       console.log(
-        '✅ AIRTABLE_API_KEY:',
-        process.env.AIRTABLE_API_KEY ? 'SET' : 'NOT SET'
+        '✅ 已載入本地 .env 檔案（強制覆蓋 Netlify 環境變數）:',
+        envPath
       );
-      console.log(
-        '✅ AIRTABLE_BASE_ID:',
-        process.env.AIRTABLE_BASE_ID || 'NOT SET'
-      );
-      return;
+      console.log('🔍 Base ID =', process.env.AIRTABLE_BASE_ID);
+      loadedFromFile = true;
+      break;
     }
   }
 
-  console.log('⚠️ 未找到 .env 檔案，嘗試的路徑:', envPaths);
-}
-
-// 初始化連接模組
-function initConnections() {
-  // 載入環境變數
-  loadEnvVars();
+  // 檢查是否在 Netlify 生產環境（不是 netlify dev）
+  const isNetlifyProduction =
+    process.env.AWS_LAMBDA_FUNCTION_NAME ||
+    (process.env.NETLIFY && process.env.NETLIFY_DEV !== 'true');
 
   console.log('🔧 initConnections() - 環境變數狀態:');
   console.log(
@@ -50,70 +54,26 @@ function initConnections() {
   console.log('  AIRTABLE_BASE_ID:', process.env.AIRTABLE_BASE_ID || 'NOT SET');
   console.log('  BACKEND_API_URL:', process.env.BACKEND_API_URL || 'NOT SET');
 
-  // 優先使用 Airtable（如果已設定）
-  if (
-    process.env.AIRTABLE_API_KEY &&
-    process.env.AIRTABLE_BASE_ID &&
-    !process.env.BACKEND_API_URL
-  ) {
+  if (isNetlifyProduction) {
+    console.log('✅ 使用 Netlify 生產環境變數（從 Dashboard 設定）');
+  } else if (!loadedFromFile) {
+    console.log(
+      '⚠️ 未找到 .env 檔案，使用環境變數（Netlify Dashboard 或系統環境變數）'
+    );
+  }
+}
+
+// 初始化連接模組（簡化版）
+function initConnections() {
+  // 簡化：直接載入 airtable 模組（它會自己處理環境變數）
+  if (!airtableConnection) {
     try {
-      // 在 Netlify Function 環境中，優先使用同目錄下的 database 模組
-      // 如果不存在，則嘗試使用相對路徑
-      const path = require('path');
-      const fs = require('fs');
-      
-      // 在 Netlify 部署環境中，直接使用相對路徑 require
-      // airtable.js 應該在同一個目錄下
-      try {
-        // 先嘗試直接 require（最簡單的方式）
-        airtableConnection = require('./airtable');
-        console.log('✅ 已載入 Airtable 連接模組（直接 require）');
-      } catch (requireError) {
-        // 如果直接 require 失敗，嘗試使用完整路徑
-        console.log('⚠️ 直接 require 失敗，嘗試使用完整路徑:', requireError.message);
-        const localPath = path.join(__dirname, 'airtable.js');
-        const fallbackPath = path.resolve(__dirname, '../../../database/airtable.js');
-        
-        if (fs.existsSync(localPath)) {
-          // 清除緩存
-          if (require.cache[localPath]) {
-            delete require.cache[localPath];
-          }
-          airtableConnection = require(localPath);
-          console.log('✅ 已載入 Airtable 連接模組（使用完整路徑）:', localPath);
-        } else if (fs.existsSync(fallbackPath)) {
-          if (require.cache[fallbackPath]) {
-            delete require.cache[fallbackPath];
-          }
-          airtableConnection = require(fallbackPath);
-          console.log('✅ 已載入 Airtable 連接模組（使用備用路徑）:', fallbackPath);
-        } else {
-          console.error('❌ 無法找到 airtable 模組，嘗試的路徑:');
-          console.error('  - ./airtable (相對路徑)');
-          console.error('  -', localPath);
-          console.error('  -', fallbackPath);
-          console.error('  - __dirname:', __dirname);
-          throw new Error(`Cannot find airtable module. Checked: ./airtable, ${localPath}, ${fallbackPath}`);
-        }
-      }
-      console.log('✅ 已載入 Airtable 連接模組');
-      console.log(
-        '✅ AIRTABLE_SHIPMENTS_TABLE:',
-        process.env.AIRTABLE_SHIPMENTS_TABLE || 'NOT SET'
-      );
-      console.log('✅ airtableConnection 類型:', typeof airtableConnection);
-      console.log(
-        '✅ airtableConnection 函數:',
-        Object.keys(airtableConnection)
-      );
+      airtableConnection = require('./airtable');
+      console.log('✅ 已載入 Airtable 模組');
     } catch (error) {
-      console.log('⚠️ Airtable 連接模組未找到:', error.message);
-      console.log('⚠️ Error stack:', error.stack);
-      airtableConnection = null; // 確保設為 null
+      console.log('⚠️ 無法載入 Airtable 模組:', error.message);
+      airtableConnection = null;
     }
-  } else {
-    console.log('⚠️ 不滿足 Airtable 條件，跳過載入');
-    airtableConnection = null; // 確保設為 null
   }
 
   // 其次使用 MongoDB（如果已設定）
@@ -139,11 +99,7 @@ function initConnections() {
 // 這樣可以確保環境變數已經正確載入
 
 exports.handler = async (event, context) => {
-  // 每次請求時重新載入環境變數（確保使用最新的設定）
-  loadEnvVars();
-
-  // 每次請求時重新初始化連接（確保使用最新的環境變數）
-  // 這樣可以確保環境變數已經正確載入
+  // 簡化：直接初始化連接（airtable.js 會自己處理環境變數載入）
   initConnections();
   // 處理 CORS
   const headers = {
@@ -164,13 +120,20 @@ exports.handler = async (event, context) => {
 
   const { httpMethod, path, queryStringParameters, body } = event;
 
+  // 如果 queryStringParameters 中有 path 參數，使用它來判斷端點（用於本地開發）
+  const effectivePath = queryStringParameters?.path || path;
+
   // 記錄 path 以便調試
   console.log('🔍 Event path:', path);
+  console.log('🔍 Effective path:', effectivePath);
   console.log('🔍 Event queryStringParameters:', queryStringParameters);
 
   try {
     // 處理 /api/health 端點（支援重定向後的 path）
-    if (path.includes('/api/health') || path.includes('/health')) {
+    if (
+      effectivePath.includes('/api/health') ||
+      effectivePath.includes('/health')
+    ) {
       return {
         statusCode: 200,
         headers,
@@ -185,13 +148,199 @@ exports.handler = async (event, context) => {
       };
     }
 
+    // 處理 /api/update-checkbox 端點（更新 checkbox 欄位）
+    if (effectivePath.includes('/api/update-checkbox')) {
+      if (httpMethod !== 'POST') {
+        return {
+          statusCode: 405,
+          headers,
+          body: JSON.stringify({
+            error: 'Method not allowed',
+            message: 'Only POST method is supported',
+          }),
+        };
+      }
+
+      try {
+        const parsedBody = body ? JSON.parse(body) : {};
+        const { recordId, checkboxUpdates } = parsedBody;
+
+        if (!recordId) {
+          return {
+            statusCode: 400,
+            headers,
+            body: JSON.stringify({
+              success: false,
+              error: 'Missing recordId',
+              message: 'recordId is required',
+            }),
+          };
+        }
+
+        if (!checkboxUpdates || typeof checkboxUpdates !== 'object') {
+          return {
+            statusCode: 400,
+            headers,
+            body: JSON.stringify({
+              success: false,
+              error: 'Missing checkboxUpdates',
+              message: 'checkboxUpdates object is required',
+            }),
+          };
+        }
+
+        // 確保 airtableConnection 已初始化
+        if (!airtableConnection) {
+          initConnections();
+        }
+
+        if (!airtableConnection || !airtableConnection.updateCheckboxFields) {
+          return {
+            statusCode: 503,
+            headers,
+            body: JSON.stringify({
+              success: false,
+              error: 'Airtable not configured',
+              message: 'Airtable connection is not available',
+            }),
+          };
+        }
+
+        const { updateCheckboxFields } = airtableConnection;
+        const updatedRecord = await updateCheckboxFields(
+          recordId,
+          checkboxUpdates
+        );
+
+        return {
+          statusCode: 200,
+          headers,
+          body: JSON.stringify({
+            success: true,
+            data: updatedRecord,
+          }),
+        };
+      } catch (error) {
+        console.error('❌ 更新 checkbox 失敗:', error);
+        return {
+          statusCode: 500,
+          headers,
+          body: JSON.stringify({
+            success: false,
+            error: 'Update failed',
+            message: error.message,
+          }),
+        };
+      }
+    }
+
+    // 處理 /api/list 端點（獲取所有貨件列表）
+    if (
+      effectivePath.includes('/api/list') ||
+      effectivePath.includes('/list')
+    ) {
+      if (httpMethod !== 'GET') {
+        return {
+          statusCode: 405,
+          headers,
+          body: JSON.stringify({
+            error: 'Method not allowed',
+            message: 'Only GET method is supported',
+          }),
+        };
+      }
+
+      try {
+        // 確保 airtableConnection 已初始化
+        if (!airtableConnection) {
+          initConnections();
+        }
+
+        if (!airtableConnection || !airtableConnection.getAllShipments) {
+          return {
+            statusCode: 503,
+            headers,
+            body: JSON.stringify({
+              success: false,
+              error: 'Airtable not configured',
+              message: 'Airtable connection is not available',
+            }),
+          };
+        }
+
+        const { getAllShipments } = airtableConnection;
+
+        // 在查詢前再次確認環境變數（確保使用 .env 的值）
+        const path = require('path');
+        const fs = require('fs');
+        const envPath = path.resolve(__dirname, '../../.env');
+        if (fs.existsSync(envPath)) {
+          require('dotenv').config({ path: envPath, override: true });
+        }
+
+        console.log(
+          '🔍 /api/list - 使用的 Base ID:',
+          process.env.AIRTABLE_BASE_ID
+        );
+        console.log(
+          '🔍 /api/list - 使用的 Table:',
+          process.env.AIRTABLE_SHIPMENTS_TABLE
+        );
+
+        // 從 query parameters 取得選項
+        const maxRecords = queryStringParameters?.maxRecords
+          ? parseInt(queryStringParameters.maxRecords, 10)
+          : 100;
+        const sortField = queryStringParameters?.sortField || 'Last Update';
+        const sortDirection = queryStringParameters?.sortDirection || 'desc';
+
+        const shipments = await airtableConnection.getAllShipments({
+          maxRecords,
+          sortField,
+          sortDirection,
+        });
+
+        console.log('📦 /api/list - 返回記錄數:', shipments.length);
+        if (shipments.length > 0) {
+          console.log(
+            '📦 /api/list - 第一筆記錄訂單編號:',
+            shipments[0].orderNo
+          );
+        }
+
+        return {
+          statusCode: 200,
+          headers,
+          body: JSON.stringify({
+            success: true,
+            count: shipments.length,
+            data: shipments,
+          }),
+        };
+      } catch (error) {
+        console.error('❌ 獲取列表失敗:', error);
+        return {
+          statusCode: 500,
+          headers,
+          body: JSON.stringify({
+            success: false,
+            error: 'Failed to fetch shipments list',
+            message: error.message,
+          }),
+        };
+      }
+    }
+
     // 處理 /api/tracking 和 /api/tracking-public 端點（支援重定向後的 path）
     // Netlify 重定向後，path 可能是 /.netlify/functions/tracking
+    // 但只有在不是 /api/list 的情況下才處理 tracking
     if (
-      path.includes('/api/tracking') ||
-      path.includes('/api/tracking-public') ||
-      path.includes('/.netlify/functions/tracking') ||
-      path === '/tracking'
+      (effectivePath.includes('/api/tracking') ||
+        effectivePath.includes('/api/tracking-public') ||
+        effectivePath.includes('/.netlify/functions/tracking') ||
+        effectivePath === '/tracking') &&
+      !effectivePath.includes('/api/list') &&
+      !effectivePath.includes('/list')
     ) {
       let orderNo, trackingNo;
 
@@ -200,7 +349,7 @@ exports.handler = async (event, context) => {
         orderNo = queryStringParameters?.orderNo;
         trackingNo = queryStringParameters?.trackingNo;
       }
-      
+
       // POST 請求：從 body 取得
       if (httpMethod === 'POST') {
         const parsedBody = body ? JSON.parse(body) : {};
@@ -220,28 +369,23 @@ exports.handler = async (event, context) => {
         };
       }
 
-      console.log('🔍 Checking Airtable connection...');
+      console.log('🔍 /api/tracking - 檢查 Airtable 連接...');
       console.log(
-        'airtableConnection:',
+        '  airtableConnection:',
         airtableConnection ? 'SET' : 'NOT SET'
       );
       console.log(
-        'AIRTABLE_API_KEY:',
-        process.env.AIRTABLE_API_KEY
-          ? 'SET (' + process.env.AIRTABLE_API_KEY.substring(0, 15) + '...)'
-          : 'NOT SET'
-      );
-      console.log(
-        'AIRTABLE_BASE_ID:',
+        '  AIRTABLE_BASE_ID (載入前):',
         process.env.AIRTABLE_BASE_ID || 'NOT SET'
       );
-      console.log(
-        'AIRTABLE_SHIPMENTS_TABLE:',
-        process.env.AIRTABLE_SHIPMENTS_TABLE || 'NOT SET'
-      );
-      console.log('BACKEND_API_URL:', process.env.BACKEND_API_URL || 'NOT SET');
 
-      // 如果連接模組未初始化，重新初始化（因為環境變數可能剛載入）
+      // 確保 airtableConnection 已初始化（和列表端點一樣）
+      if (!airtableConnection) {
+        console.log('⚠️ airtableConnection 未初始化，重新初始化...');
+        initConnections();
+      }
+
+      // 如果連接模組仍未初始化，重新初始化（因為環境變數可能剛載入）
       if (
         !airtableConnection &&
         process.env.AIRTABLE_API_KEY &&
@@ -253,39 +397,55 @@ exports.handler = async (event, context) => {
           // 如果不存在，則嘗試使用相對路徑
           const path = require('path');
           const fs = require('fs');
-          
+
           // 在 Netlify 部署環境中，直接使用相對路徑 require
           // airtable.js 應該在同一個目錄下
           try {
             // 先嘗試直接 require（最簡單的方式）
             airtableConnection = require('./airtable');
-            console.log('✅ 已載入 Airtable 連接模組（在 handler 中，直接 require）');
+            console.log(
+              '✅ 已載入 Airtable 連接模組（在 handler 中，直接 require）'
+            );
           } catch (requireError) {
             // 如果直接 require 失敗，嘗試使用完整路徑
-            console.log('⚠️ 直接 require 失敗，嘗試使用完整路徑:', requireError.message);
+            console.log(
+              '⚠️ 直接 require 失敗，嘗試使用完整路徑:',
+              requireError.message
+            );
             const localPath = path.join(__dirname, 'airtable.js');
-            const fallbackPath = path.resolve(__dirname, '../../../database/airtable.js');
-            
+            const fallbackPath = path.resolve(
+              __dirname,
+              '../../../database/airtable.js'
+            );
+
             if (fs.existsSync(localPath)) {
               // 清除緩存
               if (require.cache[localPath]) {
                 delete require.cache[localPath];
               }
               airtableConnection = require(localPath);
-              console.log('✅ 已載入 Airtable 連接模組（在 handler 中，使用完整路徑）:', localPath);
+              console.log(
+                '✅ 已載入 Airtable 連接模組（在 handler 中，使用完整路徑）:',
+                localPath
+              );
             } else if (fs.existsSync(fallbackPath)) {
               if (require.cache[fallbackPath]) {
                 delete require.cache[fallbackPath];
               }
               airtableConnection = require(fallbackPath);
-              console.log('✅ 已載入 Airtable 連接模組（在 handler 中，使用備用路徑）:', fallbackPath);
+              console.log(
+                '✅ 已載入 Airtable 連接模組（在 handler 中，使用備用路徑）:',
+                fallbackPath
+              );
             } else {
               console.error('❌ 無法找到 airtable 模組，嘗試的路徑:');
               console.error('  - ./airtable (相對路徑)');
               console.error('  -', localPath);
               console.error('  -', fallbackPath);
               console.error('  - __dirname:', __dirname);
-              throw new Error(`Cannot find airtable module. Checked: ./airtable, ${localPath}, ${fallbackPath}`);
+              throw new Error(
+                `Cannot find airtable module. Checked: ./airtable, ${localPath}, ${fallbackPath}`
+              );
             }
           }
           console.log('✅ 已載入 Airtable 連接模組（在 handler 中）');
@@ -359,8 +519,8 @@ exports.handler = async (event, context) => {
 
           // 格式化回應資料
           const responseData = {
-        success: true,
-        data: {
+            success: true,
+            data: {
               id: shipment.id,
               orderNo: shipment.orderNo,
               trackingNo: shipment.trackingNo,
@@ -458,11 +618,11 @@ exports.handler = async (event, context) => {
                 date: item.date,
               })),
             },
-      };
+          };
 
-      return {
-        statusCode: 200,
-        headers,
+          return {
+            statusCode: 200,
+            headers,
             body: JSON.stringify(responseData),
           };
         } catch (error) {
@@ -580,7 +740,7 @@ exports.handler = async (event, context) => {
     // 處理 /api/tracking/timeline/:trackingNo（如果需要）
     if (path.includes('/api/tracking/timeline/')) {
       const trackingNo = path.split('/timeline/')[1];
-      
+
       if (!trackingNo) {
         return {
           statusCode: 400,

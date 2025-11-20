@@ -350,9 +350,9 @@
         timeoutId = setTimeout(() => controller.abort(), MAX_QUERY_TIME);
       }
 
-      // 檢測環境：如果是 localhost 使用本地 API 服務器，否則使用 Netlify Function
-      const isLocalhost = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
-      const apiBaseUrl = isLocalhost ? 'http://localhost:3001/api' : '/api';
+      // 檢測環境：使用 Netlify Function（統一使用 /api）
+      // 注意：netlify dev 運行在 localhost:8888，應該使用相對路徑 /api
+      const apiBaseUrl = '/api';
       
       // 使用 GET 方法呼叫 API（與 Standard/Basic 保持一致）
       const apiUrl = `${apiBaseUrl}/tracking?orderNo=${encodeURIComponent(orderNo)}&trackingNo=${encodeURIComponent(trackingNo)}`;

@@ -44,6 +44,21 @@
   status = 200
 
 [[redirects]]
+  from = "/api/list"
+  to = "/.netlify/functions/tracking"
+  status = 200
+
+[[redirects]]
+  from = "/api/update-checkbox"
+  to = "/.netlify/functions/tracking"
+  status = 200
+
+[[redirects]]
+  from = "/list"
+  to = "/list.html"
+  status = 200
+
+[[redirects]]
   from = "/design"
   to = "/design_ui.html"
   status = 200

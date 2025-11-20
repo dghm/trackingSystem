@@ -94,6 +94,17 @@ module.exports = {
         'Dry Ice Refilled(Terminal)': '乾冰補充（終端）',
       },
     },
+    // 列表頁設定
+    listPage: {
+      checkboxLabels: {
+        '02': '貨件已收取',
+        '03': '起運地海關處理',
+        '04': '運送中',
+        '05': '目的地海關處理',
+        '06': '配送中',
+        '07': '貨件已送達',
+      },
+    },
     // Under Construction 頁面文字
     underConstruction: {
       pageTitle: '◎◎ 物流公司 追蹤系統即將上線',
