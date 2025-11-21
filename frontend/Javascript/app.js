@@ -30,6 +30,7 @@
     } catch (error) {
       // 靜默處理，不影響主要功能
     }
+    */
   }
 
   // DOM 元素
@@ -1482,6 +1483,9 @@
     const jobInputElement =
       document.querySelector('#trackingNo') ||
       document.querySelector('input[name="job"]');
+    const submitButtonElement =
+      document.querySelector('#submitBtn') ||
+      document.querySelector('button[type="submit"]');
     const resultsPanelElement = document.querySelector('.results-panel');
 
     // 追蹤頁面載入
@@ -1491,38 +1495,55 @@
       userAgent: navigator.userAgent,
     });
 
+    // 統一的查詢處理函數
+    const handleQuery = () => {
+      // 使用重新查找的輸入元素
+      const orderNo = (orderInputElement || orderInput)?.value.trim().toUpperCase();
+      const trackingNo = (jobInputElement || jobInput)?.value.trim().toUpperCase();
+
+      if (!orderNo) {
+        (orderInputElement || orderInput)?.setCustomValidity('Please enter Job No.');
+        (orderInputElement || orderInput)?.reportValidity();
+        return;
+      }
+
+      if (!trackingNo) {
+        (jobInputElement || jobInput)?.setCustomValidity('Please enter Tracking No.');
+        (jobInputElement || jobInput)?.reportValidity();
+        return;
+      }
+
+      (orderInputElement || orderInput)?.setCustomValidity('');
+      (jobInputElement || jobInput)?.setCustomValidity('');
+
+      // 執行查詢
+      handleAutoQuery(orderNo, trackingNo);
+    };
+
     // 綁定表單提交事件（使用重新查找的元素）
     if (trackingFormElement) {
       trackingFormElement.addEventListener('submit', (event) => {
         event.preventDefault();
-
-        // 使用重新查找的輸入元素
-        const orderNo = (orderInputElement || orderInput)?.value.trim().toUpperCase();
-        const trackingNo = (jobInputElement || jobInput)?.value.trim().toUpperCase();
-
-        if (!orderNo) {
-          (orderInputElement || orderInput)?.setCustomValidity('Please enter Job No.');
-          (orderInputElement || orderInput)?.reportValidity();
-          return;
-        }
-
-        if (!trackingNo) {
-          (jobInputElement || jobInput)?.setCustomValidity('Please enter Tracking No.');
-          (jobInputElement || jobInput)?.reportValidity();
-          return;
-        }
-
-        (orderInputElement || orderInput)?.setCustomValidity('');
-        (jobInputElement || jobInput)?.setCustomValidity('');
-
-        // 執行查詢
-        handleAutoQuery(orderNo, trackingNo);
+        handleQuery();
       });
+      console.log('✅ 表單提交事件已綁定');
     } else if (trackingForm) {
       // 如果重新查找失敗，使用原本找到的表單
       trackingForm.addEventListener('submit', handleFormSubmit);
+      console.log('✅ 使用備用表單提交事件');
     } else {
-      console.warn('⚠️ 找不到表單元素，查貨功能可能無法使用');
+      console.warn('⚠️ 找不到表單元素，嘗試綁定按鈕點擊事件');
+    }
+
+    // 同時綁定按鈕點擊事件（作為備用方案）
+    if (submitButtonElement) {
+      submitButtonElement.addEventListener('click', (event) => {
+        event.preventDefault();
+        handleQuery();
+      });
+      console.log('✅ 按鈕點擊事件已綁定');
+    } else {
+      console.warn('⚠️ 找不到提交按鈕元素');
     }
 
     // 從 URL 初始化（延遲執行，確保所有元素都已準備好）
