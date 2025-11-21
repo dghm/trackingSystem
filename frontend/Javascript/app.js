@@ -9,28 +9,9 @@
   // 注意：目前沒有 usage endpoint，所以暫時禁用追蹤功能
   function trackUsage(action, data) {
     // 暫時禁用，避免 404 錯誤
+    // 原本的追蹤功能已暫時禁用
+    // 如果需要啟用，請確保有對應的 /api/usage endpoint
     return;
-    /*
-    try {
-      // 非阻塞式追蹤，不影響主要功能
-      setTimeout(() => {
-        fetch(`${API_BASE_URL}/usage`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            action: action,
-            data: data,
-            timestamp: new Date().toISOString(),
-            userAgent: navigator.userAgent,
-            referrer: document.referrer,
-            url: window.location.href,
-          }),
-        }).catch(() => {}); // 靜默處理錯誤，不影響主要功能
-      }, 0);
-    } catch (error) {
-      // 靜默處理，不影響主要功能
-    }
-    */
   }
 
   // DOM 元素
