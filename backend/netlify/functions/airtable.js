@@ -32,25 +32,52 @@ function loadEnvVars() {
   console.log('🔍 搜尋 .env 檔案，當前 __dirname:', __dirname);
   console.log('🔍 當前 process.cwd():', process.cwd());
   
-  // 先清除 Netlify 注入的環境變數
-  delete process.env.AIRTABLE_BASE_ID;
-  delete process.env.AIRTABLE_API_KEY;
-  delete process.env.AIRTABLE_SHIPMENTS_TABLE;
+  // 先備份 Netlify 的環境變數（如果存在）
+  const backupEnvVars = {
+    AIRTABLE_BASE_ID: process.env.AIRTABLE_BASE_ID,
+    AIRTABLE_API_KEY: process.env.AIRTABLE_API_KEY,
+    AIRTABLE_SHIPMENTS_TABLE: process.env.AIRTABLE_SHIPMENTS_TABLE,
+  };
   
   // 找到第一個存在的 .env 檔案並載入
+  let envFileFound = false;
   for (const envPath of envPaths) {
     if (fs.existsSync(envPath)) {
+      // 只有在找到 .env 檔案時才清除環境變數（讓 dotenv 覆蓋）
+      delete process.env.AIRTABLE_BASE_ID;
+      delete process.env.AIRTABLE_API_KEY;
+      delete process.env.AIRTABLE_SHIPMENTS_TABLE;
+      
       require('dotenv').config({ path: envPath, override: true });
       console.log('✅ 已載入 .env 檔案:', envPath);
       console.log('🔍 載入的 Base ID:', process.env.AIRTABLE_BASE_ID);
+      envFileFound = true;
       return;
     } else {
       console.log('  ❌ 不存在:', envPath);
     }
   }
   
-  console.log('⚠️ 未找到 .env 檔案，使用 Netlify 環境變數');
-  console.log('⚠️ 嘗試的路徑:', envPaths);
+  // 如果沒有找到 .env 檔案，確保使用 Netlify 的環境變數（恢復備份）
+  if (!envFileFound) {
+    console.log('⚠️ 未找到 .env 檔案，使用 Netlify 環境變數');
+    console.log('⚠️ 嘗試的路徑:', envPaths);
+    
+    // 恢復備份的環境變數（如果它們存在）
+    if (backupEnvVars.AIRTABLE_BASE_ID) {
+      process.env.AIRTABLE_BASE_ID = backupEnvVars.AIRTABLE_BASE_ID;
+    }
+    if (backupEnvVars.AIRTABLE_API_KEY) {
+      process.env.AIRTABLE_API_KEY = backupEnvVars.AIRTABLE_API_KEY;
+    }
+    if (backupEnvVars.AIRTABLE_SHIPMENTS_TABLE) {
+      process.env.AIRTABLE_SHIPMENTS_TABLE = backupEnvVars.AIRTABLE_SHIPMENTS_TABLE;
+    }
+    
+    console.log('✅ 已恢復 Netlify 環境變數');
+    console.log('🔍 Base ID:', process.env.AIRTABLE_BASE_ID || 'NOT SET');
+    console.log('🔍 API Key:', process.env.AIRTABLE_API_KEY ? 'SET' : 'NOT SET');
+  }
 }
 
 /**
