@@ -99,17 +99,7 @@ function initConnections() {
 // 這樣可以確保環境變數已經正確載入
 
 exports.handler = async (event, context) => {
-  // 載入環境變數（優先使用 .env 檔案）
-  loadEnvVars();
-  
-  // 簡化：直接初始化連接（airtable.js 會自己處理環境變數載入）
-  initConnections();
-  
-  console.log('🔍 Handler 初始化完成');
-  console.log('  airtableConnection:', airtableConnection ? 'SET' : 'NOT SET');
-  console.log('  AIRTABLE_API_KEY:', process.env.AIRTABLE_API_KEY ? 'SET' : 'NOT SET');
-  console.log('  AIRTABLE_BASE_ID:', process.env.AIRTABLE_BASE_ID || 'NOT SET');
-  // 處理 CORS
+  // 處理 CORS（先設定，以便錯誤回應也能包含 CORS headers）
   const headers = {
     'Access-Control-Allow-Origin': '*',
     'Access-Control-Allow-Headers': 'Content-Type, Authorization',
@@ -126,17 +116,31 @@ exports.handler = async (event, context) => {
     };
   }
 
-  const { httpMethod, path: eventPath, queryStringParameters, body } = event;
+  try {
+    // 載入環境變數（優先使用 .env 檔案）
+    loadEnvVars();
+
+    // 簡化：直接初始化連接（airtable.js 會自己處理環境變數載入）
+    initConnections();
+
+    console.log('🔍 Handler 初始化完成');
+    console.log('  airtableConnection:', airtableConnection ? 'SET' : 'NOT SET');
+    console.log(
+      '  AIRTABLE_API_KEY:',
+      process.env.AIRTABLE_API_KEY ? 'SET' : 'NOT SET'
+    );
+    console.log('  AIRTABLE_BASE_ID:', process.env.AIRTABLE_BASE_ID || 'NOT SET');
+
+    const { httpMethod, path: eventPath, queryStringParameters, body } = event;
 
   // 如果 queryStringParameters 中有 path 參數，使用它來判斷端點（用於本地開發）
   const effectivePath = queryStringParameters?.path || eventPath;
 
-  // 記錄 path 以便調試
-  console.log('🔍 Event path:', eventPath);
-  console.log('🔍 Effective path:', effectivePath);
-  console.log('🔍 Event queryStringParameters:', queryStringParameters);
+    // 記錄 path 以便調試
+    console.log('🔍 Event path:', eventPath);
+    console.log('🔍 Effective path:', effectivePath);
+    console.log('🔍 Event queryStringParameters:', queryStringParameters);
 
-  try {
     // 處理 /api/health 端點（支援重定向後的 path）
     if (
       effectivePath.includes('/api/health') ||
@@ -350,22 +354,42 @@ exports.handler = async (event, context) => {
       !effectivePath.includes('/api/list') &&
       !effectivePath.includes('/list')
     ) {
+      console.log('🔍 處理 /api/tracking 請求');
+      console.log('  httpMethod:', httpMethod);
+      console.log('  queryStringParameters:', JSON.stringify(queryStringParameters));
+      
       let orderNo, trackingNo;
 
       // GET 請求：從 query parameters 取得
       if (httpMethod === 'GET') {
         orderNo = queryStringParameters?.orderNo;
         trackingNo = queryStringParameters?.trackingNo;
+        console.log('  GET 請求參數:', { orderNo, trackingNo });
       }
 
       // POST 請求：從 body 取得
       if (httpMethod === 'POST') {
-        const parsedBody = body ? JSON.parse(body) : {};
-        orderNo = parsedBody.order || parsedBody.orderNo;
-        trackingNo = parsedBody.job || parsedBody.trackingNo;
+        try {
+          const parsedBody = body ? JSON.parse(body) : {};
+          orderNo = parsedBody.order || parsedBody.orderNo;
+          trackingNo = parsedBody.job || parsedBody.trackingNo;
+          console.log('  POST 請求參數:', { orderNo, trackingNo });
+        } catch (parseError) {
+          console.error('❌ 解析 POST body 失敗:', parseError);
+          return {
+            statusCode: 400,
+            headers,
+            body: JSON.stringify({
+              success: false,
+              error: 'Invalid request body',
+              message: 'Failed to parse request body',
+            }),
+          };
+        }
       }
 
       // 驗證參數
+      console.log('🔍 驗證參數:', { orderNo, trackingNo });
       if (!orderNo || !trackingNo) {
         return {
           statusCode: 400,
@@ -796,7 +820,8 @@ exports.handler = async (event, context) => {
         success: false,
         error: 'Internal server error',
         message: error.message || 'An unexpected error occurred',
-        details: process.env.NODE_ENV === 'development' ? error.stack : undefined,
+        details:
+          process.env.NODE_ENV === 'development' ? error.stack : undefined,
       }),
     };
   }
