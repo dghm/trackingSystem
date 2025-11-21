@@ -99,8 +99,16 @@ function initConnections() {
 // 這樣可以確保環境變數已經正確載入
 
 exports.handler = async (event, context) => {
+  // 載入環境變數（優先使用 .env 檔案）
+  loadEnvVars();
+  
   // 簡化：直接初始化連接（airtable.js 會自己處理環境變數載入）
   initConnections();
+  
+  console.log('🔍 Handler 初始化完成');
+  console.log('  airtableConnection:', airtableConnection ? 'SET' : 'NOT SET');
+  console.log('  AIRTABLE_API_KEY:', process.env.AIRTABLE_API_KEY ? 'SET' : 'NOT SET');
+  console.log('  AIRTABLE_BASE_ID:', process.env.AIRTABLE_BASE_ID || 'NOT SET');
   // 處理 CORS
   const headers = {
     'Access-Control-Allow-Origin': '*',
@@ -118,13 +126,13 @@ exports.handler = async (event, context) => {
     };
   }
 
-  const { httpMethod, path, queryStringParameters, body } = event;
+  const { httpMethod, path: eventPath, queryStringParameters, body } = event;
 
   // 如果 queryStringParameters 中有 path 參數，使用它來判斷端點（用於本地開發）
-  const effectivePath = queryStringParameters?.path || path;
+  const effectivePath = queryStringParameters?.path || eventPath;
 
   // 記錄 path 以便調試
-  console.log('🔍 Event path:', path);
+  console.log('🔍 Event path:', eventPath);
   console.log('🔍 Effective path:', effectivePath);
   console.log('🔍 Event queryStringParameters:', queryStringParameters);
 
@@ -271,9 +279,9 @@ exports.handler = async (event, context) => {
         const { getAllShipments } = airtableConnection;
 
         // 在查詢前再次確認環境變數（確保使用 .env 的值）
-        const path = require('path');
+        const pathModule = require('path');
         const fs = require('fs');
-        const envPath = path.resolve(__dirname, '../../.env');
+        const envPath = pathModule.resolve(__dirname, '../../.env');
         if (fs.existsSync(envPath)) {
           require('dotenv').config({ path: envPath, override: true });
         }
@@ -395,7 +403,7 @@ exports.handler = async (event, context) => {
         try {
           // 在 Netlify Function 環境中，優先使用同目錄下的 database 模組
           // 如果不存在，則嘗試使用相對路徑
-          const path = require('path');
+          const pathModule = require('path');
           const fs = require('fs');
 
           // 在 Netlify 部署環境中，直接使用相對路徑 require
@@ -412,8 +420,8 @@ exports.handler = async (event, context) => {
               '⚠️ 直接 require 失敗，嘗試使用完整路徑:',
               requireError.message
             );
-            const localPath = path.join(__dirname, 'airtable.js');
-            const fallbackPath = path.resolve(
+            const localPath = pathModule.join(__dirname, 'airtable.js');
+            const fallbackPath = pathModule.resolve(
               __dirname,
               '../../../database/airtable.js'
             );
@@ -774,13 +782,21 @@ exports.handler = async (event, context) => {
       }),
     };
   } catch (error) {
-    console.error('Tracking API error:', error);
+    console.error('❌ Tracking API error:', error);
+    console.error('❌ Error stack:', error.stack);
+    console.error('❌ Error details:', {
+      message: error.message,
+      name: error.name,
+      code: error.code,
+    });
     return {
       statusCode: 500,
       headers,
       body: JSON.stringify({
+        success: false,
         error: 'Internal server error',
-        message: error.message,
+        message: error.message || 'An unexpected error occurred',
+        details: process.env.NODE_ENV === 'development' ? error.stack : undefined,
       }),
     };
   }
