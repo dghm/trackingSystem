@@ -229,8 +229,8 @@ if (fs.existsSync(JS_SOURCE_DIR)) {
 const isLocal = ['localhost', '127.0.0.1'].includes(window.location.hostname);
 
 const API_BASE_URL = isLocal
-  ? 'http://localhost:8888/.netlify/functions' // 或本地 Netlify dev URL
-  : '/.netlify/functions';
+  ? '/api' // 本地開發時使用 /api（netlify dev 會處理重定向）
+  : '/api'; // 生產環境也使用 /api（netlify.toml 重定向規則會處理）
 
 // 客戶配置（由 compile-multi-client.js 自動生成）
 window.CONFIG = {

@@ -6,7 +6,11 @@
     window.CONFIG?.API_BASE_URL || 'http://localhost:3000/api';
 
   // 使用追蹤功能（最小影響）
+  // 注意：目前沒有 usage endpoint，所以暫時禁用追蹤功能
   function trackUsage(action, data) {
+    // 暫時禁用，避免 404 錯誤
+    return;
+    /*
     try {
       // 非阻塞式追蹤，不影響主要功能
       setTimeout(() => {
