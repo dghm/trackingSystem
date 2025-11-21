@@ -59,6 +59,16 @@
   status = 200
 
 [[redirects]]
+  from = "/dashboard"
+  to = "/dashboard.html"
+  status = 200
+
+[[redirects]]
+  from = "/dashboard-list"
+  to = "/dashboard-list.html"
+  status = 200
+
+[[redirects]]
   from = "/design"
   to = "/design_ui.html"
   status = 200

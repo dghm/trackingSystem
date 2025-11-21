@@ -20,7 +20,7 @@ html(lang="zh-TW")
     script(src="./js/config.js")
     style.
       .list-container {
-        max-width: 1400px;
+        max-width: 1200px;
         margin: 0 auto;
         padding: 20px;
       }
@@ -88,6 +88,7 @@ html(lang="zh-TW")
         padding: 12px 15px;
         border-bottom: 1px solid #eee;
         font-size: 14px;
+        color: #333;
       }
       .list-table tbody tr:hover {
         background: #f9f9f9;
@@ -132,18 +133,37 @@ html(lang="zh-TW")
         border-radius: 12px;
         font-size: 12px;
         font-weight: 500;
+        color: #ffffff;
+      }
+      .status-step-1 {
+        background: #446FA0;
+      }
+      .status-step-2 {
+        background: #3B65A1;
+      }
+      .status-step-3 {
+        background: #3057A2;
+      }
+      .status-step-4 {
+        background: #264CA3;
+      }
+      .status-step-5 {
+        background: #1B3EA5;
+      }
+      .status-step-6 {
+        background: #1031A6;
+      }
+      .status-step-7 {
+        background: #0524A7;
       }
       .status-processing {
-        background: #fff3cd;
-        color: #856404;
+        background: #264CA3;
       }
       .status-completed {
-        background: #d4edda;
-        color: #155724;
+        background: #0524A7;
       }
       .status-pending {
-        background: #e2e3e5;
-        color: #383d41;
+        background: #446FA0;
       }
       .btn-checkbox-info {
         background: transparent;
@@ -561,9 +581,11 @@ html(lang="zh-TW")
                   <td>${escapeHtml(shipment.orderNo) || '—'}</td>
                   <td>${escapeHtml(shipment.trackingNo) || '—'}</td>
                   <td>
-                    <span class="status-badge status-${getStatusClass(shipment.status)}">
-                      ${formatStatus(shipment.status, shipment.latestTimelineTitle)}
-                    </span>
+                    ${(() => {
+                      const statusText = formatStatus(shipment.status, shipment.latestTimelineTitle);
+                      const statusClass = getStatusClassFromText(statusText);
+                      return `<span class="status-badge ${statusClass}">${escapeHtml(statusText)}</span>`;
+                    })()}
                   </td>
                   <td>${escapeHtml(shipment.originDestination) || '—'}</td>
                   <td>${escapeHtml(shipment.packageCount) || '—'}</td>
@@ -616,6 +638,40 @@ html(lang="zh-TW")
           return 'completed';
         }
         return 'pending';
+      }
+
+      // 根據中文狀態文字返回對應的 class
+      function getStatusClassFromText(statusText) {
+        if (!statusText) return 'status-step-1';
+        
+        const statusTextMap = {
+          '訂單已建立': 'status-step-1',
+          '貨件已收取': 'status-step-2',
+          '起運地海關處理': 'status-step-3',
+          '運送中': 'status-step-4',
+          '目的地海關處理': 'status-step-5',
+          '配送中': 'status-step-6',
+          '貨件已送達': 'status-step-7',
+          '處理中': 'status-step-4',
+          '待處理': 'status-step-1',
+          '已完成': 'status-step-7',
+          '已送達': 'status-step-7',
+        };
+        
+        // 先嘗試完全匹配
+        if (statusTextMap[statusText]) {
+          return statusTextMap[statusText];
+        }
+        
+        // 嘗試部分匹配
+        for (const [key, value] of Object.entries(statusTextMap)) {
+          if (statusText.includes(key)) {
+            return value;
+          }
+        }
+        
+        // 預設返回第一個狀態
+        return 'status-step-1';
       }
 
       // 轉換步驟名稱的函數（與查詢頁面一致）

@@ -1,0 +1,81 @@
+//- Dashboard 樣版檔案
+//- 使用配置變數（config 由 compile-multi-client.js 注入）
+- const brand = typeof config !== 'undefined' && config ? (config.brand || {}) : {}
+- const content = typeof config !== 'undefined' && config ? (config.content || {}) : {}
+- const fonts = typeof config !== 'undefined' && config ? (config.fonts || {}) : {}
+- const colors = typeof config !== 'undefined' && config ? (config.colors || {}) : {}
+
+doctype html
+html(lang="zh-TW")
+  head
+    meta(charset="UTF-8")
+    meta(name="viewport", content="width=device-width, initial-scale=1")
+    title= (brand.name || 'Dashboard') + ' - 管理後台'
+    link(rel="icon", type="image/svg+xml", href=brand.favicon || "./images/favicon.svg")
+    link(rel="preconnect", href="https://fonts.googleapis.com")
+    link(rel="preconnect", href="https://fonts.gstatic.com", crossorigin)
+    - const fontFamily = 'Noto Sans KR'
+    - const encodedFont = encodeURIComponent(fontFamily)
+    - const fontUrl = 'https://fonts.googleapis.com/css2?family=' + encodedFont + ':wght@300;400;500;600;700&display=swap'
+    link(href=fontUrl, rel="stylesheet")
+    link(rel="stylesheet", href="./css/main.css")
+    link(rel="stylesheet", href="./css/components/dashboard.css")
+    script(src="./js/config.js")
+  body.dashboard-body
+    //- Dashboard 主容器
+    .dashboard-container
+      //- 左側選單
+      aside.dashboard-sidebar#dashboardSidebar
+        .dashboard-sidebar__logo
+          img(src="./images/Logo-Square.png", alt=brand.name || "Logo")
+        nav.dashboard-menu
+          ul.dashboard-menu__list
+            li.dashboard-menu__item
+              a.dashboard-menu__link.dashboard-menu__link--active(href="#", data-page="shipments-list")
+                span.dashboard-menu__icon
+                  img(src="./images/dataSearching-car.svg", alt="貨件追蹤列表")
+                span.dashboard-menu__text 貨件追蹤列表
+
+      //- 右側區域（Header + 內容）
+      .dashboard-right
+        //- Header Bar（沒有 logo）
+        header.dashboard-header
+          .dashboard-header__container
+            .dashboard-header__actions
+              button.dashboard-header__menu-toggle#menuToggle(aria-label="切換選單")
+                span
+                span
+                span
+
+        //- 主要內容區域
+        main.dashboard-main
+          .dashboard-main__content
+            //- 這裡用 include 載入其他頁面內容
+            block content
+              .dashboard-placeholder
+                h2.dashboard-placeholder__title 歡迎使用 Dashboard
+                p.dashboard-placeholder__text 請選擇左側選單項目開始使用
+
+    script.
+      // 選單切換功能（手機版）
+      const menuToggle = document.getElementById('menuToggle');
+      const dashboardSidebar = document.getElementById('dashboardSidebar');
+      
+      if (menuToggle && dashboardSidebar) {
+        menuToggle.addEventListener('click', () => {
+          dashboardSidebar.classList.toggle('dashboard-sidebar--open');
+          menuToggle.classList.toggle('dashboard-header__menu-toggle--active');
+        });
+        
+        // 點擊選單項目時關閉選單（手機版）
+        const menuLinks = document.querySelectorAll('.dashboard-menu__link');
+        menuLinks.forEach(link => {
+          link.addEventListener('click', (e) => {
+            if (window.innerWidth <= 768) {
+              dashboardSidebar.classList.remove('dashboard-sidebar--open');
+              menuToggle.classList.remove('dashboard-header__menu-toggle--active');
+            }
+          });
+        });
+      }
+

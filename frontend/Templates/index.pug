@@ -26,8 +26,7 @@ html(lang="zh-TW")
           img.brand-logo(src=brand.logo || "./images/logo.png", alt=brand.name || "Logo")
           if brand.logoMobile
             img.brand-logo.brand-logo--mobile(src=brand.logoMobile, alt=brand.name || "Logo")
-        if brand.website
-          a.header-btn(href=brand.website)= brand.backHomeText || 'Back Home'
+        a.header-btn(href="./list.html") 返回列表頁
 
     section.hero-banner
       .hero-overlay

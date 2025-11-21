@@ -1,0 +1,238 @@
+// Dashboard 樣式
+
+// Dashboard Body
+.dashboard-body
+  margin 0
+  padding 0
+  font-family 'Noto Sans KR', sans-serif
+  background-color #f5f7fa
+  color #333
+  overflow-x hidden
+
+// Dashboard Container
+.dashboard-container
+  display flex
+  min-height 100vh
+
+// Dashboard Sidebar（左側選單）
+.dashboard-sidebar
+  width 200px
+  background-color transparent
+  position fixed
+  left 0
+  top 0
+  bottom 0
+  overflow-y auto
+  transition transform 0.3s ease
+  z-index 999
+  display flex
+  flex-direction column
+
+  &__logo
+    padding 16px
+    display flex
+    align-items center
+    justify-content center
+    border-bottom 1px solid #e5e7eb
+
+    img
+      width 100%
+      max-width 60px
+      height auto
+      object-fit contain
+
+// Dashboard Right（右側區域：Header + 內容）
+.dashboard-right
+  flex 1
+  margin-left 200px
+  display flex
+  flex-direction column
+  min-height 100vh
+
+// Dashboard Header（右側上方，沒有 logo）
+.dashboard-header
+  height 64px
+  background-color transparent
+  z-index 1000
+  display flex
+  align-items center
+  position sticky
+  top 0
+
+  &__container
+    width 100%
+    padding 0 24px
+    display flex
+    align-items center
+    justify-content flex-end
+
+  &__actions
+    display flex
+    align-items center
+    gap 16px
+
+  &__user
+    display flex
+    align-items center
+    gap 12px
+
+  &__user-name
+    font-size 14px
+    color #666
+    font-weight 500
+
+  &__user-avatar
+    width 36px
+    height 36px
+    border-radius 50%
+    background linear-gradient(135deg, #0D23A0 0%, #FFB700 100%)
+    display flex
+    align-items center
+    justify-content center
+    color #ffffff
+    font-size 14px
+    font-weight 600
+
+  &__menu-toggle
+    display none
+    flex-direction column
+    gap 4px
+    background none
+    border none
+    padding 8px
+    cursor pointer
+    width 32px
+    height 32px
+    justify-content center
+
+    span
+      width 20px
+      height 2px
+      background-color #333
+      transition all 0.3s ease
+      border-radius 2px
+
+    &--active
+      span:nth-child(1)
+        transform rotate(45deg) translate(6px, 6px)
+      span:nth-child(2)
+        opacity 0
+      span:nth-child(3)
+        transform rotate(-45deg) translate(6px, -6px)
+
+// Dashboard Menu
+.dashboard-menu
+  padding 16px 0
+
+  &__list
+    list-style none
+    margin 0
+    padding 0
+
+  &__item
+    margin 0
+    padding 0
+
+    &--divider
+      height 1px
+      background-color #e5e7eb
+      margin 16px 8px
+
+  &__link
+    display flex
+    flex-direction row
+    align-items center
+    gap 12px
+    padding 16px
+    color #666
+    text-decoration none
+    font-weight 400
+    transition all 0.2s ease
+    border-left 3px solid transparent
+
+    &:hover
+      background-color #f5f7fa
+      color #0D23A0
+
+    &--active
+      background-color #f0f4ff
+      color #0D23A0
+      border-left-color #0D23A0
+      font-weight 400
+
+  &__icon
+    flex-shrink 0
+    display flex
+    align-items center
+    justify-content center
+
+    img
+      width 32px
+      height 32px
+      object-fit contain
+      filter brightness(0) saturate(100%) invert(60%) sepia(0%) saturate(0%) hue-rotate(0deg) brightness(100%) contrast(100%)
+
+  &__text
+    font-size 1.2rem
+    line-height 1.2
+    white-space nowrap
+
+// Dashboard Main（右側內容區塊）
+.dashboard-main
+  flex 1
+  padding 24px
+  overflow-y auto
+
+  &__content
+    background-color transparent
+    border-radius 0
+    padding 24px
+    min-height calc(100vh - 112px)
+
+// Dashboard Placeholder
+.dashboard-placeholder
+  display flex
+  flex-direction column
+  align-items center
+  justify-content center
+  min-height 400px
+  text-align center
+
+  &__title
+    font-size 24px
+    font-weight 600
+    color #1a1a1a
+    margin 0 0 12px 0
+
+  &__text
+    font-size 16px
+    color #666
+    margin 0
+
+// 響應式設計
+@media (max-width: 768px)
+  .dashboard-header
+    &__title
+      font-size 18px
+
+    &__menu-toggle
+      display flex
+
+    &__user-name
+      display none
+
+  .dashboard-sidebar
+    transform translateX(-100%)
+    
+    &--open
+      transform translateX(0)
+
+  .dashboard-right
+    margin-left 0
+
+  .dashboard-main
+    padding 16px
+
+    &__content
+      padding 16px
+

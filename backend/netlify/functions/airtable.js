@@ -851,7 +851,7 @@ async function getAllShipments(options = {}) {
     });
 
     await query.eachPage(async (records, fetchNextPage) => {
-      // 使用 Promise.all 來並行處理所有記錄
+      // 使用 Promise.all 來並行處理所有記錄（包括 Timeline 查詢）
       const shipmentPromises = records.map(async (record) => {
         const fields = record.fields;
         
@@ -866,24 +866,44 @@ async function getAllShipments(options = {}) {
         const statusValue = getFieldValue('Status', 'status') || '';
         const trackingNo = getFieldValue('Tracking No.', 'Tracking No', 'TrackingNo', 'tracking_no', 'trackingNo') || '';
         
-        // 獲取最新的 timeline entry 來生成狀態文字（與查詢頁面一致）
+        // 優化：先嘗試從 Tracking 表格的欄位直接讀取最新狀態
         let latestTimelineTitle = '';
-        try {
-          // 嘗試獲取 timeline 資料來找到最新的節點
-          const timeline = await findTimeline(trackingNo, fields);
-          if (timeline && timeline.length > 0) {
-            // 找到最新的非事件 timeline entry（與 renderShipmentInfo 邏輯一致）
-            const latestTimelineEntry = timeline
-              .slice()
-              .reverse()
-              .find((item) => item && !item.isEvent && (item.time || item.date));
-            if (latestTimelineEntry && latestTimelineEntry.title) {
-              latestTimelineTitle = latestTimelineEntry.title;
-            }
+        const possibleStatusFields = [
+          'Latest Status',
+          'Current Step',
+          'Timeline Status',
+          'Latest Timeline Title',
+          'Status Title',
+          'Current Status Title'
+        ];
+        
+        for (const fieldName of possibleStatusFields) {
+          const fieldValue = getFieldValue(fieldName, '');
+          if (fieldValue && typeof fieldValue === 'string' && fieldValue.trim()) {
+            latestTimelineTitle = fieldValue.trim();
+            break;
           }
-        } catch (error) {
-          // 如果獲取 timeline 失敗，繼續使用其他方式
-          console.log('⚠️ 獲取 timeline 失敗，使用備用方式:', error.message);
+        }
+        
+        // 如果 Tracking 表格沒有狀態欄位，才查詢 Timeline
+        // 注意：這會導致較慢的載入速度，建議在 Airtable 的 Tracking 表格中添加一個 'Latest Status' 欄位
+        if (!latestTimelineTitle && trackingNo) {
+          try {
+            const timeline = await findTimeline(trackingNo, fields);
+            if (timeline && timeline.length > 0) {
+              // 找到最新的非事件 timeline entry（與 renderShipmentInfo 邏輯一致）
+              const latestTimelineEntry = timeline
+                .slice()
+                .reverse()
+                .find((item) => item && !item.isEvent && (item.time || item.date));
+              if (latestTimelineEntry && latestTimelineEntry.title) {
+                latestTimelineTitle = latestTimelineEntry.title;
+              }
+            }
+          } catch (error) {
+            // 如果獲取 timeline 失敗，繼續使用其他方式
+            console.log('⚠️ 獲取 timeline 失敗，使用備用方式:', error.message);
+          }
         }
 
         // 讀取 checkbox 欄位（02~07）
@@ -951,6 +971,12 @@ async function getAllShipments(options = {}) {
           }
         }
 
+        // 處理 Transport Type 欄位
+        const transportTypeValue = getFieldValue('Transport Type', 'TransportType', 'transportType', '');
+        const transportType = Array.isArray(transportTypeValue) 
+          ? transportTypeValue[0] || '' 
+          : transportTypeValue || '';
+
         const shipment = {
           id: record.id,
           orderNo: getFieldValue('Job No.', 'Job No', 'JobNo', 'Order No', 'OrderNo', 'job_no', 'jobNo') || '',
@@ -966,6 +992,7 @@ async function getAllShipments(options = {}) {
           createdAt: fields['Created Time'] || fields['CreatedAt'] || null,
           updatedAt: fields['Last Modified Time'] || fields['LastModifiedTime'] || null,
           checkboxFields: checkboxFields, // 新增：checkbox 欄位資料
+          transportType: transportType, // 新增：運輸類型
         };
 
         return shipment;
