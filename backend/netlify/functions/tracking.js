@@ -6,61 +6,59 @@ let dbConnection = null;
 let airtableConnection = null;
 
 // 載入環境變數的函數
-// 優先順序：
-// 1. 本地 .env 檔案（本地開發時優先使用）
-// 2. Netlify Dashboard 環境變數（生產環境或 netlify dev 同步的）
+// 邏輯：
+// - 本地開發（netlify dev）：自動使用 netlify dev 載入的 .env 環境變數
+// - 生產環境（Netlify Functions）：使用 Netlify Dashboard 設定的環境變數
 function loadEnvVars() {
   const path = require('path');
   const fs = require('fs');
 
-  // 先嘗試從 .env 檔案載入（本地開發優先）
-  // 優先順序：backend/.env > repository root/.env
-  // 注意：使用 override: true 確保 .env 的值會覆蓋 Netlify 同步的環境變數
-  const envPaths = [
-    path.resolve(__dirname, '../../.env'), // backend/.env (優先，專案專屬設定)
-    path.resolve(__dirname, '../../../../../../.env'), // repository root/.env (最後)
-  ];
+  // 檢查是否在本地開發環境（netlify dev）
+  const isLocalDev =
+    process.env.NETLIFY_DEV === 'true' || !process.env.AWS_LAMBDA_FUNCTION_NAME;
 
-  let loadedFromFile = false;
-  for (const envPath of envPaths) {
-    if (fs.existsSync(envPath)) {
-      // 在載入 .env 前先清除 Netlify 的環境變數，確保完全覆蓋
-      delete process.env.AIRTABLE_BASE_ID;
-      delete process.env.AIRTABLE_API_KEY;
-      delete process.env.AIRTABLE_SHIPMENTS_TABLE;
-
-      // 使用 override: true 確保 .env 的值會覆蓋已存在的環境變數（包括 Netlify 同步的）
-      require('dotenv').config({ path: envPath, override: true });
-      console.log(
-        '✅ 已載入本地 .env 檔案（強制覆蓋 Netlify 環境變數）:',
-        envPath
-      );
-      console.log('🔍 Base ID =', process.env.AIRTABLE_BASE_ID);
-      loadedFromFile = true;
-      break;
+  if (isLocalDev) {
+    // 本地開發環境：netlify dev 會自動載入 .env
+    // 如果環境變數已經存在，就不需要手動載入
+    if (process.env.AIRTABLE_API_KEY && process.env.AIRTABLE_BASE_ID) {
+      console.log('✅ 本地開發：使用 netlify dev 自動載入的環境變數');
+      return;
     }
+
+    // 如果環境變數不存在，嘗試手動載入 .env（作為備用方案）
+    const envPaths = [
+      path.resolve(process.cwd(), 'backend', '.env'),
+      path.resolve(
+        process.cwd(),
+        'src',
+        'Projects',
+        'DGHM',
+        'trackingSystem',
+        'backend',
+        '.env'
+      ),
+      path.resolve(__dirname, '../../.env'),
+    ];
+
+    for (const envPath of envPaths) {
+      if (fs.existsSync(envPath)) {
+        require('dotenv').config({ path: envPath, override: true });
+        console.log('✅ 本地開發：手動載入 .env 檔案:', envPath);
+        break;
+      }
+    }
+  } else {
+    // 生產環境：直接使用 Netlify Dashboard 設定的環境變數
+    console.log('✅ 生產環境：使用 Netlify Dashboard 設定的環境變數');
   }
 
-  // 檢查是否在 Netlify 生產環境（不是 netlify dev）
-  const isNetlifyProduction =
-    process.env.AWS_LAMBDA_FUNCTION_NAME ||
-    (process.env.NETLIFY && process.env.NETLIFY_DEV !== 'true');
-
-  console.log('🔧 initConnections() - 環境變數狀態:');
+  console.log('🔧 環境變數狀態:');
   console.log(
     '  AIRTABLE_API_KEY:',
     process.env.AIRTABLE_API_KEY ? 'SET' : 'NOT SET'
   );
   console.log('  AIRTABLE_BASE_ID:', process.env.AIRTABLE_BASE_ID || 'NOT SET');
   console.log('  BACKEND_API_URL:', process.env.BACKEND_API_URL || 'NOT SET');
-
-  if (isNetlifyProduction) {
-    console.log('✅ 使用 Netlify 生產環境變數（從 Dashboard 設定）');
-  } else if (!loadedFromFile) {
-    console.log(
-      '⚠️ 未找到 .env 檔案，使用環境變數（Netlify Dashboard 或系統環境變數）'
-    );
-  }
 }
 
 // 初始化連接模組（簡化版）
@@ -124,17 +122,23 @@ exports.handler = async (event, context) => {
     initConnections();
 
     console.log('🔍 Handler 初始化完成');
-    console.log('  airtableConnection:', airtableConnection ? 'SET' : 'NOT SET');
+    console.log(
+      '  airtableConnection:',
+      airtableConnection ? 'SET' : 'NOT SET'
+    );
     console.log(
       '  AIRTABLE_API_KEY:',
       process.env.AIRTABLE_API_KEY ? 'SET' : 'NOT SET'
     );
-    console.log('  AIRTABLE_BASE_ID:', process.env.AIRTABLE_BASE_ID || 'NOT SET');
+    console.log(
+      '  AIRTABLE_BASE_ID:',
+      process.env.AIRTABLE_BASE_ID || 'NOT SET'
+    );
 
     const { httpMethod, path: eventPath, queryStringParameters, body } = event;
 
-  // 如果 queryStringParameters 中有 path 參數，使用它來判斷端點（用於本地開發）
-  const effectivePath = queryStringParameters?.path || eventPath;
+    // 如果 queryStringParameters 中有 path 參數，使用它來判斷端點（用於本地開發）
+    const effectivePath = queryStringParameters?.path || eventPath;
 
     // 記錄 path 以便調試
     console.log('🔍 Event path:', eventPath);
@@ -158,6 +162,160 @@ exports.handler = async (event, context) => {
             : 'not configured',
         }),
       };
+    }
+
+    // 處理 /api/create-shipment 端點（新增貨件）
+    if (effectivePath.includes('/api/create-shipment')) {
+      if (httpMethod !== 'POST') {
+        return {
+          statusCode: 405,
+          headers,
+          body: JSON.stringify({
+            error: 'Method not allowed',
+            message: 'Only POST method is supported',
+          }),
+        };
+      }
+
+      try {
+        const parsedBody = body ? JSON.parse(body) : {};
+        const { shipmentData } = parsedBody;
+
+        if (!shipmentData || typeof shipmentData !== 'object') {
+          return {
+            statusCode: 400,
+            headers,
+            body: JSON.stringify({
+              success: false,
+              error: 'Missing shipmentData',
+              message: 'shipmentData object is required',
+            }),
+          };
+        }
+
+        // 確保 airtableConnection 已初始化
+        if (!airtableConnection) {
+          initConnections();
+        }
+
+        if (!airtableConnection || !airtableConnection.createShipment) {
+          return {
+            statusCode: 503,
+            headers,
+            body: JSON.stringify({
+              success: false,
+              error: 'Airtable not configured',
+              message: 'Airtable connection is not available',
+            }),
+          };
+        }
+
+        const { createShipment } = airtableConnection;
+        const newRecord = await createShipment(shipmentData);
+
+        return {
+          statusCode: 200,
+          headers,
+          body: JSON.stringify({
+            success: true,
+            data: newRecord,
+          }),
+        };
+      } catch (error) {
+        console.error('❌ 新增貨件失敗:', error);
+        return {
+          statusCode: 500,
+          headers,
+          body: JSON.stringify({
+            success: false,
+            error: 'Create failed',
+            message: error.message,
+          }),
+        };
+      }
+    }
+
+    // 處理 /api/update-shipment 端點（更新貨件欄位）
+    if (effectivePath.includes('/api/update-shipment')) {
+      if (httpMethod !== 'POST') {
+        return {
+          statusCode: 405,
+          headers,
+          body: JSON.stringify({
+            error: 'Method not allowed',
+            message: 'Only POST method is supported',
+          }),
+        };
+      }
+
+      try {
+        const parsedBody = body ? JSON.parse(body) : {};
+        const { recordId, updates } = parsedBody;
+
+        if (!recordId) {
+          return {
+            statusCode: 400,
+            headers,
+            body: JSON.stringify({
+              success: false,
+              error: 'Missing recordId',
+              message: 'recordId is required',
+            }),
+          };
+        }
+
+        if (!updates || typeof updates !== 'object') {
+          return {
+            statusCode: 400,
+            headers,
+            body: JSON.stringify({
+              success: false,
+              error: 'Missing updates',
+              message: 'updates object is required',
+            }),
+          };
+        }
+
+        // 確保 airtableConnection 已初始化
+        if (!airtableConnection) {
+          initConnections();
+        }
+
+        if (!airtableConnection || !airtableConnection.updateShipmentFields) {
+          return {
+            statusCode: 503,
+            headers,
+            body: JSON.stringify({
+              success: false,
+              error: 'Airtable not configured',
+              message: 'Airtable connection is not available',
+            }),
+          };
+        }
+
+        const { updateShipmentFields } = airtableConnection;
+        const updatedRecord = await updateShipmentFields(recordId, updates);
+
+        return {
+          statusCode: 200,
+          headers,
+          body: JSON.stringify({
+            success: true,
+            data: updatedRecord,
+          }),
+        };
+      } catch (error) {
+        console.error('❌ 更新貨件失敗:', error);
+        return {
+          statusCode: 500,
+          headers,
+          body: JSON.stringify({
+            success: false,
+            error: 'Update failed',
+            message: error.message,
+          }),
+        };
+      }
     }
 
     // 處理 /api/update-checkbox 端點（更新 checkbox 欄位）
@@ -356,8 +514,11 @@ exports.handler = async (event, context) => {
     ) {
       console.log('🔍 處理 /api/tracking 請求');
       console.log('  httpMethod:', httpMethod);
-      console.log('  queryStringParameters:', JSON.stringify(queryStringParameters));
-      
+      console.log(
+        '  queryStringParameters:',
+        JSON.stringify(queryStringParameters)
+      );
+
       let orderNo, trackingNo;
 
       // GET 請求：從 query parameters 取得

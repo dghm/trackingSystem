@@ -54,6 +54,16 @@
   status = 200
 
 [[redirects]]
+  from = "/api/create-shipment"
+  to = "/.netlify/functions/tracking"
+  status = 200
+
+[[redirects]]
+  from = "/api/update-shipment"
+  to = "/.netlify/functions/tracking"
+  status = 200
+
+[[redirects]]
   from = "/list"
   to = "/list.html"
   status = 200
@@ -83,10 +93,12 @@
   to = "/standard.html"
   status = 200
 
+# 通配符規則必須放在最後，避免覆蓋 API 路由
 [[redirects]]
   from = "/*"
   to = "/index.html"
   status = 200
+  force = false
 
 # 安全標頭
 [[headers]]

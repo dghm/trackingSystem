@@ -17,66 +17,70 @@ let currentBaseId = null;
 function loadEnvVars() {
   const path = require('path');
   const fs = require('fs');
-  
-  // 嘗試多個可能的 .env 檔案路徑
-  // 在 Netlify Function 環境中，__dirname 可能指向打包後的位置
-  // 所以我們需要嘗試多個路徑
-  const envPaths = [
-    path.resolve(__dirname, '../../.env'),           // backend/.env (最可能)
-    path.resolve(__dirname, '../../../.env'),       // trackingSystem/.env
-    path.resolve(__dirname, '../../../../.env'),     // 更上層
-    path.join(process.cwd(), 'backend', '.env'),     // 使用 process.cwd() 作為基準
-    path.join(process.cwd(), '.env'),                 // 根目錄
-  ];
-  
-  console.log('🔍 搜尋 .env 檔案，當前 __dirname:', __dirname);
-  console.log('🔍 當前 process.cwd():', process.cwd());
-  
-  // 先備份 Netlify 的環境變數（如果存在）
-  const backupEnvVars = {
-    AIRTABLE_BASE_ID: process.env.AIRTABLE_BASE_ID,
-    AIRTABLE_API_KEY: process.env.AIRTABLE_API_KEY,
-    AIRTABLE_SHIPMENTS_TABLE: process.env.AIRTABLE_SHIPMENTS_TABLE,
-  };
-  
-  // 找到第一個存在的 .env 檔案並載入
-  let envFileFound = false;
-  for (const envPath of envPaths) {
-    if (fs.existsSync(envPath)) {
-      // 只有在找到 .env 檔案時才清除環境變數（讓 dotenv 覆蓋）
-      delete process.env.AIRTABLE_BASE_ID;
-      delete process.env.AIRTABLE_API_KEY;
-      delete process.env.AIRTABLE_SHIPMENTS_TABLE;
-      
-      require('dotenv').config({ path: envPath, override: true });
-      console.log('✅ 已載入 .env 檔案:', envPath);
-      console.log('🔍 載入的 Base ID:', process.env.AIRTABLE_BASE_ID);
-      envFileFound = true;
+
+  // 檢查是否在本地開發環境（netlify dev）
+  // netlify dev 會自動從專案根目錄或 backend 目錄讀取 .env 並注入環境變數
+  const isLocalDev =
+    process.env.NETLIFY_DEV === 'true' || !process.env.AWS_LAMBDA_FUNCTION_NAME;
+
+  if (isLocalDev) {
+    // 本地開發環境：netlify dev 會自動載入 .env，但我們也可以手動載入以確保
+    // 嘗試從常見位置載入 .env（作為備用方案）
+    const envPaths = [
+      path.resolve(process.cwd(), 'backend', '.env'),
+      path.resolve(
+        process.cwd(),
+        'src',
+        'Projects',
+        'DGHM',
+        'trackingSystem',
+        'backend',
+        '.env'
+      ),
+      path.resolve(process.cwd(), '.env'),
+      path.resolve(__dirname, '../../.env'),
+    ];
+
+    // 如果環境變數已經存在（由 netlify dev 自動載入），就不需要手動載入
+    if (process.env.AIRTABLE_API_KEY && process.env.AIRTABLE_BASE_ID) {
+      console.log('✅ 本地開發：使用 netlify dev 自動載入的環境變數');
+      console.log('🔍 Base ID:', process.env.AIRTABLE_BASE_ID);
       return;
-    } else {
-      console.log('  ❌ 不存在:', envPath);
     }
-  }
-  
-  // 如果沒有找到 .env 檔案，確保使用 Netlify 的環境變數（恢復備份）
-  if (!envFileFound) {
-    console.log('⚠️ 未找到 .env 檔案，使用 Netlify 環境變數');
-    console.log('⚠️ 嘗試的路徑:', envPaths);
-    
-    // 恢復備份的環境變數（如果它們存在）
-    if (backupEnvVars.AIRTABLE_BASE_ID) {
-      process.env.AIRTABLE_BASE_ID = backupEnvVars.AIRTABLE_BASE_ID;
+
+    // 如果環境變數不存在，嘗試手動載入 .env
+    for (const envPath of envPaths) {
+      if (fs.existsSync(envPath)) {
+        require('dotenv').config({ path: envPath, override: true });
+        console.log('✅ 本地開發：手動載入 .env 檔案:', envPath);
+        console.log('🔍 Base ID:', process.env.AIRTABLE_BASE_ID || 'NOT SET');
+        return;
+      }
     }
-    if (backupEnvVars.AIRTABLE_API_KEY) {
-      process.env.AIRTABLE_API_KEY = backupEnvVars.AIRTABLE_API_KEY;
-    }
-    if (backupEnvVars.AIRTABLE_SHIPMENTS_TABLE) {
-      process.env.AIRTABLE_SHIPMENTS_TABLE = backupEnvVars.AIRTABLE_SHIPMENTS_TABLE;
-    }
-    
-    console.log('✅ 已恢復 Netlify 環境變數');
+
+    console.log('⚠️ 本地開發：未找到 .env 檔案，請確認：');
+    console.log('   1. backend/.env 檔案存在');
+    console.log('   2. 使用 "netlify dev" 啟動本地開發伺服器');
+    console.log('   3. 或手動設定環境變數');
+  } else {
+    // 生產環境（Netlify Functions）：直接使用 Netlify Dashboard 設定的環境變數
+    // 不需要載入 .env 檔案
+    console.log('✅ 生產環境：使用 Netlify Dashboard 設定的環境變數');
     console.log('🔍 Base ID:', process.env.AIRTABLE_BASE_ID || 'NOT SET');
-    console.log('🔍 API Key:', process.env.AIRTABLE_API_KEY ? 'SET' : 'NOT SET');
+    console.log(
+      '🔍 API Key:',
+      process.env.AIRTABLE_API_KEY ? 'SET' : 'NOT SET'
+    );
+
+    if (!process.env.AIRTABLE_API_KEY || !process.env.AIRTABLE_BASE_ID) {
+      console.log('⚠️ 警告：生產環境中未找到環境變數！');
+      console.log(
+        '   請在 Netlify Dashboard → Site settings → Environment variables 中設定：'
+      );
+      console.log('   - AIRTABLE_API_KEY');
+      console.log('   - AIRTABLE_BASE_ID');
+      console.log('   - AIRTABLE_SHIPMENTS_TABLE (可選)');
+    }
   }
 }
 
@@ -88,10 +92,10 @@ function initAirtable() {
   // 記錄載入前的 Base ID（用於調試）
   const beforeBaseId = process.env.AIRTABLE_BASE_ID;
   console.log('🔍 initAirtable() - 載入前 Base ID:', beforeBaseId);
-  
+
   // 每次調用時都重新載入環境變數
   loadEnvVars();
-  
+
   const apiKey = process.env.AIRTABLE_API_KEY;
   const baseId = process.env.AIRTABLE_BASE_ID;
 
@@ -881,7 +885,7 @@ async function getAllShipments(options = {}) {
       // 使用 Promise.all 來並行處理所有記錄（包括 Timeline 查詢）
       const shipmentPromises = records.map(async (record) => {
         const fields = record.fields;
-        
+
         // 嘗試多種欄位名稱組合來取得資料
         const getFieldValue = (...fieldNames) => {
           for (const name of fieldNames) {
@@ -891,8 +895,15 @@ async function getAllShipments(options = {}) {
         };
 
         const statusValue = getFieldValue('Status', 'status') || '';
-        const trackingNo = getFieldValue('Tracking No.', 'Tracking No', 'TrackingNo', 'tracking_no', 'trackingNo') || '';
-        
+        const trackingNo =
+          getFieldValue(
+            'Tracking No.',
+            'Tracking No',
+            'TrackingNo',
+            'tracking_no',
+            'trackingNo'
+          ) || '';
+
         // 優化：先嘗試從 Tracking 表格的欄位直接讀取最新狀態
         let latestTimelineTitle = '';
         const possibleStatusFields = [
@@ -901,17 +912,21 @@ async function getAllShipments(options = {}) {
           'Timeline Status',
           'Latest Timeline Title',
           'Status Title',
-          'Current Status Title'
+          'Current Status Title',
         ];
-        
+
         for (const fieldName of possibleStatusFields) {
           const fieldValue = getFieldValue(fieldName, '');
-          if (fieldValue && typeof fieldValue === 'string' && fieldValue.trim()) {
+          if (
+            fieldValue &&
+            typeof fieldValue === 'string' &&
+            fieldValue.trim()
+          ) {
             latestTimelineTitle = fieldValue.trim();
             break;
           }
         }
-        
+
         // 如果 Tracking 表格沒有狀態欄位，才查詢 Timeline
         // 注意：這會導致較慢的載入速度，建議在 Airtable 的 Tracking 表格中添加一個 'Latest Status' 欄位
         if (!latestTimelineTitle && trackingNo) {
@@ -922,7 +937,9 @@ async function getAllShipments(options = {}) {
               const latestTimelineEntry = timeline
                 .slice()
                 .reverse()
-                .find((item) => item && !item.isEvent && (item.time || item.date));
+                .find(
+                  (item) => item && !item.isEvent && (item.time || item.date)
+                );
               if (latestTimelineEntry && latestTimelineEntry.title) {
                 latestTimelineTitle = latestTimelineEntry.title;
               }
@@ -956,7 +973,12 @@ async function getAllShipments(options = {}) {
         };
 
         const originDestinationRaw = normalizeFieldValue(
-          getFieldValue('Origin/Destination', 'Origin Destination', 'Route', 'origin_destination')
+          getFieldValue(
+            'Origin/Destination',
+            'Origin Destination',
+            'Route',
+            'origin_destination'
+          )
         );
 
         const parseOriginDestination = (rawValue) => {
@@ -977,10 +999,12 @@ async function getAllShipments(options = {}) {
           return rawValue.trim();
         };
 
-        const originDestination = parseOriginDestination(originDestinationRaw) || '';
+        const originDestination =
+          parseOriginDestination(originDestinationRaw) || '';
 
         // 處理 Weight(KG) 欄位，並在數字後加上 "KG"
-        const weightRaw = getFieldValue('Weight(KG)', 'Weight (KG)', 'Weight', 'weight') || '';
+        const weightRaw =
+          getFieldValue('Weight(KG)', 'Weight (KG)', 'Weight', 'weight') || '';
         let weight = '';
         if (weightRaw) {
           // 如果已經是字串，檢查是否已包含 "KG"，如果沒有則加上
@@ -999,25 +1023,61 @@ async function getAllShipments(options = {}) {
         }
 
         // 處理 Transport Type 欄位
-        const transportTypeValue = getFieldValue('Transport Type', 'TransportType', 'transportType', '');
-        const transportType = Array.isArray(transportTypeValue) 
-          ? transportTypeValue[0] || '' 
+        const transportTypeValue = getFieldValue(
+          'Transport Type',
+          'TransportType',
+          'transportType',
+          ''
+        );
+        const transportType = Array.isArray(transportTypeValue)
+          ? transportTypeValue[0] || ''
           : transportTypeValue || '';
 
         const shipment = {
           id: record.id,
-          orderNo: getFieldValue('Job No.', 'Job No', 'JobNo', 'Order No', 'OrderNo', 'job_no', 'jobNo') || '',
+          orderNo:
+            getFieldValue(
+              'Job No.',
+              'Job No',
+              'JobNo',
+              'Order No',
+              'OrderNo',
+              'job_no',
+              'jobNo'
+            ) || '',
           trackingNo: trackingNo,
           status: statusValue,
           latestTimelineTitle: latestTimelineTitle, // 新增：最新的 timeline 節點標題（用於生成狀態文字）
           originDestination: originDestination, // 合併後的起運地 → 目的地
-          packageCount: getFieldValue('Package Count', 'PackageCount', 'Packages', 'package_count') || '',
+          packageCount:
+            getFieldValue(
+              'Package Count',
+              'PackageCount',
+              'Packages',
+              'package_count'
+            ) || '',
           weight: weight, // 從 Weight(KG) 讀取並加上 "KG"
-          eta: getFieldValue('ETA', 'eta', 'Estimated Arrival', 'estimated_arrival') || '',
-          invoiceNo: getFieldValue('Invoice No', 'InvoiceNo', 'Invoice', 'invoice_no') || '',
-          lastUpdate: getFieldValue('Last Update', 'LastUpdate', 'Updated', 'Updated At', 'Lastest Update') || '',
+          eta:
+            getFieldValue(
+              'ETA',
+              'eta',
+              'Estimated Arrival',
+              'estimated_arrival'
+            ) || '',
+          invoiceNo:
+            getFieldValue('Invoice No', 'InvoiceNo', 'Invoice', 'invoice_no') ||
+            '',
+          lastUpdate:
+            getFieldValue(
+              'Last Update',
+              'LastUpdate',
+              'Updated',
+              'Updated At',
+              'Lastest Update'
+            ) || '',
           createdAt: fields['Created Time'] || fields['CreatedAt'] || null,
-          updatedAt: fields['Last Modified Time'] || fields['LastModifiedTime'] || null,
+          updatedAt:
+            fields['Last Modified Time'] || fields['LastModifiedTime'] || null,
           checkboxFields: checkboxFields, // 新增：checkbox 欄位資料
           transportType: transportType, // 新增：運輸類型
         };
@@ -1049,7 +1109,7 @@ async function updateCheckboxFields(recordId, checkboxUpdates) {
   try {
     const airtableBase = initAirtable();
     const tableName = process.env.AIRTABLE_SHIPMENTS_TABLE || 'Shipments';
-    
+
     // 嘗試多種欄位名稱來更新
     const fieldNameMap = {
       '02': ['02', 'checkbox_02', 'Checkbox 02'],
@@ -1059,7 +1119,7 @@ async function updateCheckboxFields(recordId, checkboxUpdates) {
       '06': ['06', 'checkbox_06', 'Checkbox 06'],
       '07': ['07', 'checkbox_07', 'Checkbox 07'],
     };
-    
+
     // 構建更新物件，嘗試多種欄位名稱
     const updateFields = {};
     for (const [key, value] of Object.entries(checkboxUpdates)) {
@@ -1067,13 +1127,16 @@ async function updateCheckboxFields(recordId, checkboxUpdates) {
       // 使用第一個欄位名稱（通常是最常見的）
       updateFields[fieldNames[0]] = value;
     }
-    
+
     console.log('🔍 更新 checkbox 欄位:', updateFields);
     console.log('🔍 記錄 ID:', recordId);
-    
+
     // 更新記錄
-    const updatedRecord = await airtableBase(tableName).update(recordId, updateFields);
-    
+    const updatedRecord = await airtableBase(tableName).update(
+      recordId,
+      updateFields
+    );
+
     console.log('✅ 成功更新 checkbox 欄位');
     return {
       id: updatedRecord.id,
@@ -1085,6 +1148,149 @@ async function updateCheckboxFields(recordId, checkboxUpdates) {
   }
 }
 
+/**
+ * 更新貨件的欄位資料
+ * @param {string} recordId - Airtable 記錄 ID
+ * @param {Object} updates - 要更新的欄位 { 'Job No.': 'DG700', 'Tracking No.': 'YZAB6789', ... }
+ * @returns {Promise<Object>} 更新後的記錄
+ */
+async function updateShipmentFields(recordId, updates) {
+  try {
+    const airtableBase = initAirtable();
+    const tableName = process.env.AIRTABLE_SHIPMENTS_TABLE || 'Shipments';
+
+    // 嘗試多種欄位名稱來更新
+    // 注意：'Job No.' 是計算欄位，不能更新，所以從 fieldNameMap 中移除
+    const fieldNameMap = {
+      // 'Job No.' 是計算欄位，跳過
+      'Tracking No.': ['Tracking No.', 'Tracking No', 'TrackingNo'],
+      'Origin/Destination': [
+        'Origin/Destination',
+        'Origin Destination',
+        'Route',
+      ],
+      Origin: ['Origin', 'origin'],
+      Destination: ['Destination', 'destination'],
+      'Transport Type': ['Transport Type', 'TransportType', 'transportType'],
+      'Package Count': ['Package Count', 'PackageCount', 'Packages'],
+      'Weight(KG)': ['Weight(KG)', 'Weight (KG)', 'Weight', 'weight'],
+      ETA: ['ETA', 'eta', 'Estimated Arrival'],
+      'Invoice No.': ['Invoice No.', 'Invoice No', 'InvoiceNo', 'Invoice'],
+      MAWB: ['MAWB', 'mawb'],
+    };
+
+    // 構建更新物件，嘗試多種欄位名稱
+    const updateFields = {};
+    // 計算欄位列表（不能更新）
+    const computedFields = ['Job No.', 'Job No', 'JobNo', 'Order No', 'OrderNo'];
+    
+    for (const [key, value] of Object.entries(updates)) {
+      // 如果值為 null 或空字串，跳過（不更新）
+      if (value === null || value === '') {
+        continue;
+      }
+      
+      // 如果是計算欄位，跳過（不能更新）
+      if (computedFields.includes(key)) {
+        console.log(`⚠️ 跳過計算欄位: ${key}`);
+        continue;
+      }
+
+      const fieldNames = fieldNameMap[key] || [key];
+      // 使用第一個欄位名稱（通常是最常見的）
+      updateFields[fieldNames[0]] = value;
+    }
+
+    console.log('🔍 更新貨件欄位:', updateFields);
+    console.log('🔍 記錄 ID:', recordId);
+
+    // 更新記錄
+    const updatedRecord = await airtableBase(tableName).update(
+      recordId,
+      updateFields
+    );
+
+    console.log('✅ 成功更新貨件欄位');
+    return {
+      id: updatedRecord.id,
+      fields: updatedRecord.fields,
+    };
+  } catch (error) {
+    console.error('❌ 更新貨件欄位失敗:', error);
+    throw error;
+  }
+}
+
+/**
+ * 新增貨件記錄
+ * @param {Object} shipmentData - 貨件資料
+ * @returns {Promise<Object>} 新增的記錄
+ */
+async function createShipment(shipmentData) {
+  try {
+    const airtableBase = initAirtable();
+    const tableName = process.env.AIRTABLE_SHIPMENTS_TABLE || 'Shipments';
+
+    // 構建新增記錄的欄位
+    const fields = {};
+    
+    // 處理各個欄位
+    if (shipmentData['Tracking No.']) {
+      fields['Tracking No.'] = shipmentData['Tracking No.'];
+    }
+    
+    if (shipmentData['Origin/Destination']) {
+      fields['Origin/Destination'] = shipmentData['Origin/Destination'];
+    }
+    
+    if (shipmentData['Origin']) {
+      fields['Origin'] = shipmentData['Origin'];
+    }
+    
+    if (shipmentData['Destination']) {
+      fields['Destination'] = shipmentData['Destination'];
+    }
+    
+    if (shipmentData['Transport Type']) {
+      fields['Transport Type'] = shipmentData['Transport Type'];
+    }
+    
+    if (shipmentData['Package Count'] !== undefined && shipmentData['Package Count'] !== null) {
+      fields['Package Count'] = parseInt(shipmentData['Package Count'], 10);
+    }
+    
+    if (shipmentData['Weight(KG)']) {
+      fields['Weight(KG)'] = shipmentData['Weight(KG)'];
+    }
+    
+    if (shipmentData['ETA']) {
+      fields['ETA'] = shipmentData['ETA'];
+    }
+    
+    if (shipmentData['Invoice No.']) {
+      fields['Invoice No.'] = shipmentData['Invoice No.'];
+    }
+    
+    if (shipmentData['MAWB']) {
+      fields['MAWB'] = shipmentData['MAWB'];
+    }
+
+    console.log('🔍 新增貨件記錄:', fields);
+
+    // 新增記錄
+    const newRecord = await airtableBase(tableName).create(fields);
+
+    console.log('✅ 成功新增貨件記錄');
+    return {
+      id: newRecord.id,
+      fields: newRecord.fields,
+    };
+  } catch (error) {
+    console.error('❌ 新增貨件記錄失敗:', error);
+    throw error;
+  }
+}
+
 module.exports = {
   initAirtable,
   findShipment,
@@ -1092,4 +1298,6 @@ module.exports = {
   testConnection,
   getAllShipments,
   updateCheckboxFields,
+  updateShipmentFields,
+  createShipment,
 };

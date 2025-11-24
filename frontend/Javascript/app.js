@@ -364,7 +364,16 @@
             reason: 'not_found',
             responseTime: Date.now() - startTime,
           });
-          return null; // 找不到資料
+          // 嘗試解析 JSON 回應以獲取錯誤訊息
+          try {
+            const errorData = await response.json();
+            return {
+              error: 'not_found',
+              message: errorData.message || '找不到記錄，請確認訂單編號和追蹤號碼是否正確。',
+            };
+          } catch (e) {
+            return null; // 找不到資料
+          }
         }
         if (response.status === 429) {
           // 追蹤查詢結果（限制）
@@ -1344,6 +1353,11 @@
       return;
     }
 
+    if (result && result.error === 'not_found') {
+      showResultsMessage('error', result.message || STATUS_MESSAGES.notFound);
+      return;
+    }
+
     if (!result) {
       showResultsMessage('error', STATUS_MESSAGES.notFound);
       return;
@@ -1427,6 +1441,11 @@
 
     if (result && result.error === 'timeout') {
       showResultsMessage('error', result.message || STATUS_MESSAGES.timeout);
+      return;
+    }
+
+    if (result && result.error === 'not_found') {
+      showResultsMessage('error', result.message || STATUS_MESSAGES.notFound);
       return;
     }
 

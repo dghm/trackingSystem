@@ -3,12 +3,17 @@
   "version": "1.0.0",
   "description": "TailorMed 貨件追蹤系統",
   "scripts": {
-    "build": "node compile.js"
+    "build": "node compile.js",
+    "dev": "netlify dev",
+    "start": "netlify dev"
   },
   "dependencies": {
     "airtable": "^0.12.2",
     "dotenv": "^16.3.1",
     "pug": "^3.0.2",
     "stylus": "^0.59.0"
+  },
+  "devDependencies": {
+    "netlify-cli": "^17.0.0"
   }
 }
